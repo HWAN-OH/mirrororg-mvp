@@ -74,10 +74,12 @@ if 'lang' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.header(TEXTS["sidebar_header"][st.session_state.lang])
+    
+    # --- ERROR FIX: Removed the explicit 'key' argument from st.selectbox ---
     lang_choice = st.selectbox(
         label=f'{TEXTS["language_selector"]["en"]} / {TEXTS["language_selector"]["ko"]}',
         options=['한국어', 'English'],
-        index=0 if st.session_state.lang == 'ko' else 1, key='lang_selector'
+        index=0 if st.session_state.lang == 'ko' else 1
     )
     st.session_state.lang = 'ko' if lang_choice == '한국어' else 'en'
 lang = st.session_state.lang
@@ -121,14 +123,12 @@ def display_results(lang):
             try:
                 profile_df = pd.DataFrame(profile_data)
                 if not profile_df.empty:
-                    # More robust renaming
                     rename_map = {
                         profile_df.columns[0]: TEXTS['col_name'][lang],
                         "emotion_score": TEXTS['col_emotion'][lang], "cognition_score": TEXTS['col_cognition'][lang],
                         "expression_score": TEXTS['col_expression'][lang], "value_score": TEXTS['col_value'][lang],
                         "bias_score": TEXTS['col_bias'][lang], "core_role": TEXTS['col_role'][lang],
                     }
-                    # Only rename columns that actually exist in the DataFrame
                     actual_rename_map = {k: v for k, v in rename_map.items() if k in profile_df.columns}
                     profile_df.rename(columns=actual_rename_map, inplace=True)
                 st.dataframe(profile_df, use_container_width=True)
@@ -181,7 +181,7 @@ if api_configured:
                 detected_format = parsers.detect_format(file_content)
                 st.success(TEXTS["parsing_success"][lang].format(count=len(chat_df), format=detected_format))
                 
-                if st.button(TEXTS["analysis_button"][lang], key="start_analysis"):
+                if st.button(TEXTS["analysis_button"][lang]):
                     with st.spinner(TEXTS["spinner_analysis"][lang]):
                         st.session_state.analysis_result = analyzer.run_full_analysis(chat_df)
                     st.success(TEXTS["analysis_complete"][lang])
