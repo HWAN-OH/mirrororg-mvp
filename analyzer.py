@@ -92,7 +92,7 @@ PROMPT_FATIGUE_TIMELINE = PROMPT_KNOWLEDGE_BASE + """
 """
 
 # --- 3. 갈등 네트워크 분석 프롬프트 ---
-PROMPT_CONFLICT_NETWORK = PROMPT_METHODOLOGY + """
+PROMPT_CONFLICT_NETWORK = PROMPT_KNOWLEDGE_BASE + """
 ### 현재 임무: 관계 네트워크 예측 (Phase 2: Prediction)
 
 **1. 임무 목표:**
