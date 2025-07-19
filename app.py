@@ -98,7 +98,6 @@ with st.sidebar:
 # --- API Key Configuration (Runs only once) ---
 api_configured = False
 try:
-    # --- THIS IS THE CORRECTED LINE ---
     genai.configure(api_key=st.secrets["GOOGLE_AI_API_KEY"])
     api_configured = True
 except (KeyError, AttributeError):
@@ -295,15 +294,19 @@ if api_configured:
             if profile_data:
                 try:
                     profile_df = pd.DataFrame(profile_data)
-                    profile_df.rename(columns={
-                        "name": TEXTS['col_name'][lang],
-                        "emotion_score": TEXTS['col_emotion'][lang],
-                        "cognition_score": TEXTS['col_cognition'][lang],
-                        "expression_score": TEXTS['col_expression'][lang],
-                        "value_score": TEXTS['col_value'][lang],
-                        "bias_score": TEXTS['col_bias'][lang],
-                        "core_role": TEXTS['col_role'][lang],
-                    }, inplace=True)
+                    # --- ROBUSTNESS FIX ---
+                    if not profile_df.empty:
+                        # Rename the first column to 'Name', whatever it's called by the API
+                        original_name_col = profile_df.columns[0]
+                        profile_df.rename(columns={
+                            original_name_col: TEXTS['col_name'][lang],
+                            "emotion_score": TEXTS['col_emotion'][lang],
+                            "cognition_score": TEXTS['col_cognition'][lang],
+                            "expression_score": TEXTS['col_expression'][lang],
+                            "value_score": TEXTS['col_value'][lang],
+                            "bias_score": TEXTS['col_bias'][lang],
+                            "core_role": TEXTS['col_role'][lang],
+                        }, inplace=True)
                     st.dataframe(profile_df, use_container_width=True)
                 except Exception as e:
                     st.error(f"{TEXTS['profile_error'][lang]}: {e}")
@@ -314,7 +317,8 @@ if api_configured:
         with tab2:
             st.subheader(TEXTS["fatigue_subheader"][lang])
             st.info(TEXTS["fatigue_info"][lang])
-            timeline__data = st.session_state.analysis_result.get('timeline')
+            # --- TYPO FIX ---
+            timeline_data = st.session_state.analysis_result.get('timeline')
             if timeline_data:
                 try:
                     timeline_df = pd.DataFrame.from_dict(timeline_data, orient='index')
