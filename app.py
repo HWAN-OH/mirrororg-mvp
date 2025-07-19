@@ -10,7 +10,7 @@ from datetime import datetime
 # --- [Delta] Centralized Text Management for Multilingual Support ---
 TEXTS = {
     # General UI
-    "page_title": {"ko": "MirrorOrg MVP v6", "en": "MirrorOrg MVP v6"},
+    "page_title": {"ko": "MirrorOrg MVP", "en": "MirrorOrg MVP"},
     "main_title": {"ko": "🪞 MirrorOrg MVP: 종합 팀 분석", "en": "🪞 MirrorOrg MVP: Comprehensive Team Analysis"},
     "main_description": {
         "ko": "'미러오알지 팀 분석 사례'에 기반한 다차원 협업 진단 도구입니다.\n**팀 채팅 기록(카카오톡, 슬랙 등)**을 업로드하여 팀 프로필, 피로도 변화, 관계 네트워크를 종합적으로 진단합니다.",
@@ -19,14 +19,10 @@ TEXTS = {
     # Sidebar
     "sidebar_header": {"ko": "설정", "en": "Settings"},
     "language_selector": {"ko": "언어", "en": "Language"},
-    "api_key_loaded": {"ko": "API 키가 안전하게 로드되었습니다.", "en": "API key loaded securely."},
-    "local_env_warning": {"ko": "⚠️ API 키가 설정되지 않았습니다. 로컬 환경의 경우, 아래에 키를 입력해주세요.", "en": "⚠️ API key not set. For local environment, please enter your key below."},
-    "api_key_input": {"ko": "Gemini API 키를 입력하세요:", "en": "Enter your Gemini API Key:"},
-    "api_key_success": {"ko": "API 키 설정 완료!", "en": "API key configured successfully!"},
-    "api_key_failure": {"ko": "API 키 설정 실패", "en": "API key configuration failed"},
-    "api_key_info": {
-        "ko": "시작하려면 Gemini API 키를 설정해주세요. [API 키 발급받기](https://aistudio.google.com/app/apikey)",
-        "en": "Please configure your Gemini API key to start. [Get an API Key](https://aistudio.google.com/app/apikey)"
+    "api_key_error_title": {"ko": "API 키 설정 오류", "en": "API Key Configuration Error"},
+    "api_key_error_body": {
+        "ko": "앱 관리자가 설정한 API 키에 문제가 있습니다. 잠시 후 다시 시도해주세요.",
+        "en": "There is an issue with the API key configured by the app administrator. Please try again later."
     },
     # Main Content
     "upload_header": {"ko": "1. 채팅 기록 업로드", "en": "1. Upload Chat History"},
@@ -83,8 +79,6 @@ st.set_page_config(
 # --- Initialize Session State ---
 if 'analysis_result' not in st.session_state:
     st.session_state.analysis_result = {}
-if 'api_key_configured' not in st.session_state:
-    st.session_state.api_key_configured = False
 if 'lang' not in st.session_state:
     st.session_state.lang = 'ko'
 
@@ -99,30 +93,16 @@ with st.sidebar:
         key='lang_selector'
     )
     st.session_state.lang = 'ko' if lang_choice == '한국어' else 'en'
-    lang = st.session_state.lang # Define lang for convenience
+    lang = st.session_state.lang
 
-    # --- [Delta] Improved API Key Handling ---
-    api_key = None
-    # First, try to get the key from secrets (for Streamlit Cloud)
-    if "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        st.success(TEXTS["api_key_loaded"][lang])
-    # If the key is not in secrets, show the input field (for local or missing secret)
-    else:
-        st.warning(TEXTS["local_env_warning"][lang])
-        api_key = st.text_input(TEXTS["api_key_input"][lang], type="password", key="api_key_input")
-
-    # Configure the API client if a key is available and not yet configured
-    if api_key and not st.session_state.api_key_configured:
-        try:
-            genai.configure(api_key=api_key)
-            st.session_state.api_key_configured = True
-            st.success(TEXTS["api_key_success"][lang])
-        except Exception as e:
-            st.error(f"{TEXTS['api_key_failure'][lang]}: {e}")
-    
-    if not st.session_state.api_key_configured:
-        st.info(TEXTS["api_key_info"][lang])
+# --- API Key Configuration (Runs only once) ---
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    api_configured = True
+except (KeyError, AttributeError):
+    st.error(TEXTS["api_key_error_title"][lang])
+    st.warning(TEXTS["api_key_error_body"][lang])
+    api_configured = False
 
 
 # --- Main UI ---
@@ -269,86 +249,87 @@ def draw_network_graph(network_data):
     except Exception as e: st.error(f"{TEXTS['network_error'][lang]}: {e}")
 
 # --- Main App Logic ---
-st.header(TEXTS["upload_header"][lang])
-st.info(TEXTS["upload_info"][lang])
+if api_configured:
+    st.header(TEXTS["upload_header"][lang])
+    st.info(TEXTS["upload_info"][lang])
 
-uploaded_file = st.file_uploader(TEXTS["file_uploader_label"][lang], type="txt", key="file_uploader")
+    uploaded_file = st.file_uploader(TEXTS["file_uploader_label"][lang], type="txt", key="file_uploader")
 
-if uploaded_file is not None and st.session_state.api_key_configured:
-    try:
-        file_content = uploaded_file.getvalue().decode("utf-8")
-        chat_df = parse_kakao_talk(file_content)
+    if uploaded_file is not None:
+        try:
+            file_content = uploaded_file.getvalue().decode("utf-8")
+            chat_df = parse_kakao_talk(file_content)
 
-        if chat_df is not None:
-            st.success(TEXTS["parsing_success"][lang].format(count=len(chat_df)))
-            
-            if st.button(TEXTS["analysis_button"][lang], key="start_analysis"):
-                chat_log_for_api = "\n".join(chat_df.apply(lambda row: f"[{row['speaker']}] {row['message']}", axis=1))
+            if chat_df is not None:
+                st.success(TEXTS["parsing_success"][lang].format(count=len(chat_df)))
                 
-                with st.spinner(TEXTS["spinner_profile"][lang]):
-                    st.session_state.analysis_result['profile'] = call_gemini_api(PROMPT_TEAM_PROFILE, chat_log_for_api)
-                with st.spinner(TEXTS["spinner_timeline"][lang]):
-                    st.session_state.analysis_result['timeline'] = call_gemini_api(PROMPT_FATIGUE_TIMELINE, chat_log_for_api)
-                with st.spinner(TEXTS["spinner_network"][lang]):
-                    st.session_state.analysis_result['network'] = call_gemini_api(PROMPT_CONFLICT_NETWORK, chat_log_for_api)
-                
-                st.success(TEXTS["analysis_complete"][lang])
-        else:
-            st.error(TEXTS["parsing_error"][lang])
-    except Exception as e:
-        st.error(f"{TEXTS['file_process_error'][lang]}: {e}")
+                if st.button(TEXTS["analysis_button"][lang], key="start_analysis"):
+                    chat_log_for_api = "\n".join(chat_df.apply(lambda row: f"[{row['speaker']}] {row['message']}", axis=1))
+                    
+                    with st.spinner(TEXTS["spinner_profile"][lang]):
+                        st.session_state.analysis_result['profile'] = call_gemini_api(PROMPT_TEAM_PROFILE, chat_log_for_api)
+                    with st.spinner(TEXTS["spinner_timeline"][lang]):
+                        st.session_state.analysis_result['timeline'] = call_gemini_api(PROMPT_FATIGUE_TIMELINE, chat_log_for_api)
+                    with st.spinner(TEXTS["spinner_network"][lang]):
+                        st.session_state.analysis_result['network'] = call_gemini_api(PROMPT_CONFLICT_NETWORK, chat_log_for_api)
+                    
+                    st.success(TEXTS["analysis_complete"][lang])
+            else:
+                st.error(TEXTS["parsing_error"][lang])
+        except Exception as e:
+            st.error(f"{TEXTS['file_process_error'][lang]}: {e}")
 
-# --- Display Results in Tabs ---
-if st.session_state.analysis_result:
-    st.header(TEXTS["results_header"][lang])
-    
-    tab_titles = [TEXTS["tab_profile"][lang], TEXTS["tab_fatigue"][lang], TEXTS["tab_network"][lang]]
-    tab1, tab2, tab3 = st.tabs(tab_titles)
+    # --- Display Results in Tabs ---
+    if st.session_state.analysis_result:
+        st.header(TEXTS["results_header"][lang])
+        
+        tab_titles = [TEXTS["tab_profile"][lang], TEXTS["tab_fatigue"][lang], TEXTS["tab_network"][lang]]
+        tab1, tab2, tab3 = st.tabs(tab_titles)
 
-    with tab1:
-        st.subheader(TEXTS["profile_subheader"][lang])
-        st.info(TEXTS["profile_info"][lang])
-        profile_data = st.session_state.analysis_result.get('profile')
-        if profile_data:
-            try:
-                profile_df = pd.DataFrame(profile_data)
-                profile_df.rename(columns={
-                    "name": TEXTS['col_name'][lang],
-                    "emotion_score": TEXTS['col_emotion'][lang],
-                    "cognition_score": TEXTS['col_cognition'][lang],
-                    "expression_score": TEXTS['col_expression'][lang],
-                    "value_score": TEXTS['col_value'][lang],
-                    "bias_score": TEXTS['col_bias'][lang],
-                    "core_role": TEXTS['col_role'][lang],
-                }, inplace=True)
-                st.dataframe(profile_df, use_container_width=True)
-            except Exception as e:
-                st.error(f"{TEXTS['profile_error'][lang]}: {e}")
-                st.json(profile_data)
-        else:
-            st.warning(TEXTS["profile_warning"][lang])
+        with tab1:
+            st.subheader(TEXTS["profile_subheader"][lang])
+            st.info(TEXTS["profile_info"][lang])
+            profile_data = st.session_state.analysis_result.get('profile')
+            if profile_data:
+                try:
+                    profile_df = pd.DataFrame(profile_data)
+                    profile_df.rename(columns={
+                        "name": TEXTS['col_name'][lang],
+                        "emotion_score": TEXTS['col_emotion'][lang],
+                        "cognition_score": TEXTS['col_cognition'][lang],
+                        "expression_score": TEXTS['col_expression'][lang],
+                        "value_score": TEXTS['col_value'][lang],
+                        "bias_score": TEXTS['col_bias'][lang],
+                        "core_role": TEXTS['col_role'][lang],
+                    }, inplace=True)
+                    st.dataframe(profile_df, use_container_width=True)
+                except Exception as e:
+                    st.error(f"{TEXTS['profile_error'][lang]}: {e}")
+                    st.json(profile_data)
+            else:
+                st.warning(TEXTS["profile_warning"][lang])
 
-    with tab2:
-        st.subheader(TEXTS["fatigue_subheader"][lang])
-        st.info(TEXTS["fatigue_info"][lang])
-        timeline_data = st.session_state.analysis_result.get('timeline')
-        if timeline_data:
-            try:
-                timeline_df = pd.DataFrame.from_dict(timeline_data, orient='index')
-                timeline_df.index = pd.to_datetime(timeline_df.index)
-                timeline_df = timeline_df.sort_index()
-                st.line_chart(timeline_df)
-            except Exception as e:
-                st.error(f"{TEXTS['fatigue_error'][lang]}: {e}")
-                st.json(timeline_data)
-        else:
-            st.warning(TEXTS["fatigue_warning"][lang])
+        with tab2:
+            st.subheader(TEXTS["fatigue_subheader"][lang])
+            st.info(TEXTS["fatigue_info"][lang])
+            timeline_data = st.session_state.analysis_result.get('timeline')
+            if timeline_data:
+                try:
+                    timeline_df = pd.DataFrame.from_dict(timeline_data, orient='index')
+                    timeline_df.index = pd.to_datetime(timeline_df.index)
+                    timeline_df = timeline_df.sort_index()
+                    st.line_chart(timeline_df)
+                except Exception as e:
+                    st.error(f"{TEXTS['fatigue_error'][lang]}: {e}")
+                    st.json(timeline_data)
+            else:
+                st.warning(TEXTS["fatigue_warning"][lang])
 
-    with tab3:
-        st.subheader(TEXTS["network_subheader"][lang])
-        st.info(TEXTS["network_info"][lang])
-        network_data = st.session_state.analysis_result.get('network')
-        if network_data:
-            draw_network_graph(network_data)
-        else:
-            st.warning(TEXTS["network_warning"][lang])
+        with tab3:
+            st.subheader(TEXTS["network_subheader"][lang])
+            st.info(TEXTS["network_info"][lang])
+            network_data = st.session_state.analysis_result.get('network')
+            if network_data:
+                draw_network_graph(network_data)
+            else:
+                st.warning(TEXTS["network_warning"][lang])
