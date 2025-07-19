@@ -1,6 +1,6 @@
 # analyzer.py
 # 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 분석 결과를 생성합니다.
-# 디버깅 버전: JSON 변환 실패 시, 원본 텍스트를 반환하여 오류 원인을 파악합니다.
+# 최종 버전: 분석 함수를 개별적으로 분리하여 안정성을 확보합니다.
 
 import google.generativeai as genai
 import json
@@ -146,49 +146,42 @@ PROMPT_CONFLICT_NETWORK = """
 **[실제 분석 결과 출력]**
 """
 
+
 def call_gemini_api(prompt: str, chat_log: str) -> dict | list | str | None:
     """
     Calls the Gemini API. If JSON parsing fails, returns the raw text for debugging.
     """
     try:
         model = genai.GenerativeModel('gemini-pro')
-        
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
-
         full_prompt = prompt.format(chat_log=chat_log)
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
 
-        # First, try to extract JSON from a markdown block
         match = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
         if match:
             json_text = match.group(1)
         else:
             json_text = response.text.strip()
-
-        # Try to parse the extracted text as JSON
+        
         return json.loads(json_text)
-
     except json.JSONDecodeError:
-        # If JSON parsing fails, return the raw text that caused the error
         return response.text
     except Exception:
-        # For any other errors (e.g., API call failure), return None
         return None
 
-def run_full_analysis(chat_df: pd.DataFrame) -> dict:
-    """
-    Runs the full analysis suite on the parsed chat data.
-    """
-    chat_log_for_api = "\n".join(chat_df.apply(lambda row: f"{row['date']}\n[{row['speaker']}] {row['message']}", axis=1))
+def analyze_profile(chat_df: pd.DataFrame) -> dict | list | str | None:
+    chat_log = "\n".join(chat_df.apply(lambda row: f"[{row['speaker']}] {row['message']}", axis=1))
+    return call_gemini_api(PROMPT_TEAM_PROFILE, chat_log)
 
-    results = {}
-    results['profile'] = call_gemini_api(PROMPT_TEAM_PROFILE, chat_log_for_api)
-    results['timeline'] = call_gemini_api(PROMPT_FATIGUE_TIMELINE, chat_log_for_api)
-    results['network'] = call_gemini_api(PROMPT_CONFLICT_NETWORK, chat_log_for_api)
-    
-    return results
+def analyze_timeline(chat_df: pd.DataFrame) -> dict | list | str | None:
+    chat_log = "\n".join(chat_df.apply(lambda row: f"[{row['speaker']}] {row['message']}", axis=1))
+    return call_gemini_api(PROMPT_FATIGUE_TIMELINE, chat_log)
+
+def analyze_network(chat_df: pd.DataFrame) -> dict | list | str | None:
+    chat_log = "\n".join(chat_df.apply(lambda row: f"[{row['speaker']}] {row['message']}", axis=1))
+    return call_gemini_api(PROMPT_CONFLICT_NETWORK, chat_log)
