@@ -74,8 +74,6 @@ if 'lang' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.header(TEXTS["sidebar_header"][st.session_state.lang])
-    
-    # --- ERROR FIX: Removed the explicit 'key' argument from st.selectbox ---
     lang_choice = st.selectbox(
         label=f'{TEXTS["language_selector"]["en"]} / {TEXTS["language_selector"]["ko"]}',
         options=['한국어', 'English'],
@@ -170,7 +168,7 @@ st.markdown(TEXTS["main_description"][lang])
 if api_configured:
     st.header(TEXTS["upload_header"][lang])
     st.info(TEXTS["upload_info"][lang])
-    uploaded_file = st.file_uploader(TEXTS["file_uploader_label"][lang], type="txt", key="file_uploader")
+    uploaded_file = st.file_uploader(TEXTS["file_uploader_label"][lang], type="txt")
 
     if uploaded_file is not None:
         try:
