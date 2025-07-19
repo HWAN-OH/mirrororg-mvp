@@ -1,15 +1,13 @@
 # analyzer.py
 # 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 분석 결과를 생성합니다.
-# 최종 버전: AI에게 명확한 역할(Persona)과 임무(Mission)를 부여하여 응답 안정성을 극대화합니다.
+# 디버깅 버전: JSON 변환 실패 시, 원본 텍스트를 반환하여 오류 원인을 파악합니다.
 
 import google.generativeai as genai
 import json
 import pandas as pd
 import re
 
-# --- [Lumina & Delta] Role & Purpose Imprinting Prompts ---
-
-# --- 1. 팀 프로필 분석 프롬프트 ---
+# --- 프롬프트는 이전 버전과 동일합니다. (생략) ---
 PROMPT_TEAM_PROFILE = """
 ### 페르소나 및 미션 (Persona & Mission)
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 사용하는 최고 수준의 조직 심리 분석가입니다.
@@ -59,8 +57,6 @@ PROMPT_TEAM_PROFILE = """
 ---
 **[실제 분석 결과 출력]**
 """
-
-# --- 2. 피로도 타임라인 분석 프롬프트 ---
 PROMPT_FATIGUE_TIMELINE = """
 ### 페르소나 및 미션 (Persona & Mission)
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 사용하는 최고 수준의 조직 행동 분석가입니다.
@@ -102,8 +98,6 @@ PROMPT_FATIGUE_TIMELINE = """
 ---
 **[실제 분석 결과 출력]**
 """
-
-# --- 3. 갈등 네트워크 분석 프롬프트 ---
 PROMPT_CONFLICT_NETWORK = """
 ### 페르소나 및 미션 (Persona & Mission)
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 사용하는 최고 수준의 관계 동역학 분석가입니다.
@@ -152,9 +146,9 @@ PROMPT_CONFLICT_NETWORK = """
 **[실제 분석 결과 출력]**
 """
 
-def call_gemini_api(prompt: str, chat_log: str) -> dict | list | None:
+def call_gemini_api(prompt: str, chat_log: str) -> dict | list | str | None:
     """
-    Calls the Gemini API with disabled safety settings to ensure a response.
+    Calls the Gemini API. If JSON parsing fails, returns the raw text for debugging.
     """
     try:
         model = genai.GenerativeModel('gemini-pro')
@@ -167,17 +161,23 @@ def call_gemini_api(prompt: str, chat_log: str) -> dict | list | None:
         ]
 
         full_prompt = prompt.format(chat_log=chat_log)
-        
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
 
+        # First, try to extract JSON from a markdown block
         match = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
         if match:
             json_text = match.group(1)
         else:
             json_text = response.text.strip()
 
+        # Try to parse the extracted text as JSON
         return json.loads(json_text)
+
+    except json.JSONDecodeError:
+        # If JSON parsing fails, return the raw text that caused the error
+        return response.text
     except Exception:
+        # For any other errors (e.g., API call failure), return None
         return None
 
 def run_full_analysis(chat_df: pd.DataFrame) -> dict:
