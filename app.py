@@ -21,8 +21,8 @@ TEXTS = {
     "language_selector": {"ko": "언어", "en": "Language"},
     "api_key_error_title": {"ko": "API 키 설정 오류", "en": "API Key Configuration Error"},
     "api_key_error_body": {
-        "ko": "앱 관리자가 설정한 API 키에 문제가 있습니다. 잠시 후 다시 시도해주세요.",
-        "en": "There is an issue with the API key configured by the app administrator. Please try again later."
+        "ko": "앱 관리자가 설정한 API 키에 문제가 있습니다. Streamlit Cloud의 'Secrets' 설정을 확인해주세요.",
+        "en": "There is an issue with the API key configured by the app administrator. Please check the 'Secrets' settings on Streamlit Cloud."
     },
     # Main Content
     "upload_header": {"ko": "1. 채팅 기록 업로드", "en": "1. Upload Chat History"},
@@ -96,8 +96,10 @@ with st.sidebar:
     lang = st.session_state.lang
 
 # --- API Key Configuration (Runs only once) ---
+api_configured = False
 try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # --- THIS IS THE CORRECTED LINE ---
+    genai.configure(api_key=st.secrets["GOOGLE_AI_API_KEY"])
     api_configured = True
 except (KeyError, AttributeError):
     st.error(TEXTS["api_key_error_title"][lang])
@@ -312,7 +314,7 @@ if api_configured:
         with tab2:
             st.subheader(TEXTS["fatigue_subheader"][lang])
             st.info(TEXTS["fatigue_info"][lang])
-            timeline_data = st.session_state.analysis_result.get('timeline')
+            timeline__data = st.session_state.analysis_result.get('timeline')
             if timeline_data:
                 try:
                     timeline_df = pd.DataFrame.from_dict(timeline_data, orient='index')
