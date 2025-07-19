@@ -1,14 +1,13 @@
 # analyzer.py
 # 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 분석 결과를 생성합니다.
-# 버전 4: '퓨샷 프롬프팅'을 적용하여 AI 응답의 안정성을 대폭 강화합니다.
+# 버전 5: API 안전 필터를 비활성화하여 응답 안정성을 확보합니다.
 
 import google.generativeai as genai
 import json
 import pandas as pd
+import re
 
-# --- [Delta] Few-shot Prompting Applied ---
-
-# --- 1. 팀 프로필 분석 프롬프트 ---
+# --- 프롬프트는 이전 버전과 동일합니다. (생략) ---
 PROMPT_TEAM_PROFILE = """
 당신은 조직 심리 분석가입니다. 주어진 채팅 기록을 분석하여, 각 팀원의 특성을 분석하고 결과를 JSON 형식으로 반환해야 합니다.
 아래의 '샘플 입력'과 '샘플 출력'을 참고하여, 어떤 경우에도 '샘플 출력'과 동일한 JSON 구조를 유지해야 합니다.
@@ -71,7 +70,6 @@ PROMPT_TEAM_PROFILE = """
 **[실제 분석 결과 출력]**
 """
 
-# --- 2. 피로도 타임라인 분석 프롬프트 ---
 PROMPT_FATIGUE_TIMELINE = """
 당신은 조직 행동 분석가입니다. 주어진 채팅 기록을 분석하여, 시간 경과에 따른 각 팀원의 '피로도(Fatigue)' 변화를 추정하고, 그 결과를 날짜별 JSON 데이터로 반환해야 합니다.
 아래의 '샘플 입력'과 '샘플 출력'을 참고하여, 어떤 경우에도 '샘플 출력'과 동일한 JSON 구조를 유지해야 합니다.
@@ -111,7 +109,6 @@ PROMPT_FATIGUE_TIMELINE = """
 **[실제 분석 결과 출력]**
 """
 
-# --- 3. 갈등 네트워크 분석 프롬프트 ---
 PROMPT_CONFLICT_NETWORK = """
 당신은 관계 동역학 분석가입니다. 주어진 채팅 기록을 분석하여, 팀원 간의 상호작용을 '갈등 네트워크'로 모델링하고, 그 구조를 노드(node)와 엣지(edge) 형태의 JSON으로 반환해야 합니다.
 아래의 '샘플 입력'과 '샘플 출력'을 참고하여, 어떤 경우에도 '샘플 출력'과 동일한 JSON 구조를 유지해야 합니다.
@@ -157,32 +154,39 @@ PROMPT_CONFLICT_NETWORK = """
 
 def call_gemini_api(prompt: str, chat_log: str) -> dict | list | None:
     """
-    Calls the Gemini API and returns the parsed JSON response.
-    Handles potential errors during the API call or JSON parsing.
+    Calls the Gemini API with disabled safety settings to ensure a response.
     """
     try:
         model = genai.GenerativeModel('gemini-pro')
-        # The prompt already contains the full structure, so we just format the chat log.
+        
+        # --- [Delta] SURGICAL INTERVENTION: Disable all safety filters ---
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+
         full_prompt = prompt.format(chat_log=chat_log)
-        response = model.generate_content(full_prompt)
+        
+        # Pass the safety settings to the generate_content call
+        response = model.generate_content(full_prompt, safety_settings=safety_settings)
+
         # A more robust way to extract JSON, even with surrounding text.
         match = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
         if match:
             json_text = match.group(1)
         else:
-            # If no markdown block, assume the whole text is JSON.
-            json_text = response.text
+            json_text = response.text.strip()
 
         return json.loads(json_text)
     except Exception:
-        # Errors will be caught and handled in the main app file to show them in the UI.
         return None
 
 def run_full_analysis(chat_df: pd.DataFrame) -> dict:
     """
     Runs the full analysis suite on the parsed chat data.
     """
-    # Convert dataframe to a simple text log for the API
     chat_log_for_api = "\n".join(chat_df.apply(lambda row: f"{row['date']}\n[{row['speaker']}] {row['message']}", axis=1))
 
     results = {}
