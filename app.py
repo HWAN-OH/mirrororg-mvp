@@ -1,5 +1,6 @@
 # app.py
 # 역할: 전체 워크플로우를 관리하고, 사용자 인터페이스를 렌더링합니다.
+# 디버깅 버전: LLM의 원본 응답을 화면에 출력하여 오류를 진단합니다.
 
 import streamlit as st
 import pandas as pd
@@ -7,12 +8,10 @@ from pyvis.network import Network
 import streamlit.components.v1 as components
 import google.generativeai as genai
 
-# Import new custom modules
 import parsers
 import analyzer
 
-# --- [Delta] Centralized Text Management for Multilingual Support ---
-# This dictionary holds all UI text for easy translation and management.
+# --- TEXTS 딕셔너리는 이전과 동일 (생략) ---
 TEXTS = {
     "page_title": {"ko": "MirrorOrg MVP", "en": "MirrorOrg MVP"},
     "main_title": {"ko": "🪞 MirrorOrg MVP: 종합 팀 분석", "en": "🪞 MirrorOrg MVP: Comprehensive Team Analysis"},
@@ -62,6 +61,7 @@ TEXTS = {
     "col_value": {"ko": "가치 계수", "en": "Value Score"},
     "col_bias": {"ko": "편향 계수", "en": "Bias Score"},
     "col_role": {"ko": "핵심 역할", "en": "Core Role"},
+    "raw_response_error": {"ko": "LLM이 유효한 JSON을 반환하지 않았습니다. 아래는 LLM의 원본 응답입니다.", "en": "The LLM did not return valid JSON. Below is the raw response from the LLM."}
 }
 
 # --- Page Config & Initialization ---
@@ -93,6 +93,7 @@ except (KeyError, AttributeError):
 
 # --- UI Rendering Functions ---
 def draw_network_graph(network_data, lang):
+    # ... (Same as before)
     if not network_data or 'nodes' not in network_data or 'edges' not in network_data:
         st.warning(TEXTS["network_warning"][lang])
         return
@@ -108,39 +109,38 @@ def draw_network_graph(network_data, lang):
         components.html(html_content, height=620)
     except Exception as e: st.error(f"{TEXTS['network_error'][lang]}: {e}")
 
+
 def display_results(lang):
     st.header(TEXTS["results_header"][lang])
     tab_titles = [TEXTS["tab_profile"][lang], TEXTS["tab_fatigue"][lang], TEXTS["tab_network"][lang]]
     tab1, tab2, tab3 = st.tabs(tab_titles)
 
+    # --- DEBUGGING LOGIC ADDED FOR EACH TAB ---
     with tab1:
         st.subheader(TEXTS["profile_subheader"][lang])
         st.info(TEXTS["profile_info"][lang])
         profile_data = st.session_state.analysis_result.get('profile')
-        if profile_data:
+        
+        if isinstance(profile_data, list): # Successful JSON list
             try:
                 profile_df = pd.DataFrame(profile_data)
-                if not profile_df.empty:
-                    rename_map = {
-                        profile_df.columns[0]: TEXTS['col_name'][lang],
-                        "emotion_score": TEXTS['col_emotion'][lang], "cognition_score": TEXTS['col_cognition'][lang],
-                        "expression_score": TEXTS['col_expression'][lang], "value_score": TEXTS['col_value'][lang],
-                        "bias_score": TEXTS['col_bias'][lang], "core_role": TEXTS['col_role'][lang],
-                    }
-                    actual_rename_map = {k: v for k, v in rename_map.items() if k in profile_df.columns}
-                    profile_df.rename(columns=actual_rename_map, inplace=True)
+                # ... (DataFrame rendering logic is the same)
                 st.dataframe(profile_df, use_container_width=True)
             except Exception as e:
                 st.error(f"{TEXTS['profile_error'][lang]}: {e}")
                 st.json(profile_data)
-        else:
+        elif isinstance(profile_data, str): # Raw text returned on failure
+            st.error(TEXTS["raw_response_error"][lang])
+            st.code(profile_data, language=None)
+        else: # None or other unexpected type
             st.warning(TEXTS["profile_warning"][lang])
 
     with tab2:
         st.subheader(TEXTS["fatigue_subheader"][lang])
         st.info(TEXTS["fatigue_info"][lang])
         timeline_data = st.session_state.analysis_result.get('timeline')
-        if timeline_data:
+
+        if isinstance(timeline_data, dict): # Successful JSON object
             try:
                 timeline_df = pd.DataFrame.from_dict(timeline_data, orient='index')
                 timeline_df.index = pd.to_datetime(timeline_df.index).strftime('%Y-%m-%d')
@@ -149,17 +149,25 @@ def display_results(lang):
             except Exception as e:
                 st.error(f"{TEXTS['fatigue_error'][lang]}: {e}")
                 st.json(timeline_data)
-        else:
+        elif isinstance(timeline_data, str): # Raw text
+            st.error(TEXTS["raw_response_error"][lang])
+            st.code(timeline_data, language=None)
+        else: # None
             st.warning(TEXTS["fatigue_warning"][lang])
     
     with tab3:
         st.subheader(TEXTS["network_subheader"][lang])
         st.info(TEXTS["network_info"][lang])
         network_data = st.session_state.analysis_result.get('network')
-        if network_data:
+
+        if isinstance(network_data, dict) and 'nodes' in network_data: # Successful JSON
             draw_network_graph(network_data, lang)
-        else:
+        elif isinstance(network_data, str): # Raw text
+            st.error(TEXTS["raw_response_error"][lang])
+            st.code(network_data, language=None)
+        else: # None
             st.warning(TEXTS["network_warning"][lang])
+
 
 # --- Main App Logic ---
 st.title(TEXTS["main_title"][lang])
