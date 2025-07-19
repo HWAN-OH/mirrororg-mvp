@@ -10,29 +10,29 @@ from datetime import datetime
 # --- [Delta] Centralized Text Management for Multilingual Support ---
 TEXTS = {
     # General UI
-    "page_title": {"ko": "MirrorOrg MVP v4", "en": "MirrorOrg MVP v4"},
+    "page_title": {"ko": "MirrorOrg MVP v6", "en": "MirrorOrg MVP v6"},
     "main_title": {"ko": "🪞 MirrorOrg MVP: 종합 팀 분석", "en": "🪞 MirrorOrg MVP: Comprehensive Team Analysis"},
     "main_description": {
-        "ko": "'미러오알지 팀 분석 사례'에 기반한 다차원 협업 진단 도구입니다.\n카카오톡 채팅 기록을 업로드하여 **팀 프로필, 피로도 변화, 관계 네트워크**를 종합적으로 진단합니다.",
-        "en": "A multi-dimensional collaboration diagnostic tool based on the 'MirrorOrg Team Analysis Case Study'.\nUpload your KakaoTalk chat history to diagnose **Team Profile, Fatigue Trajectory, and Relationship Network**."
+        "ko": "'미러오알지 팀 분석 사례'에 기반한 다차원 협업 진단 도구입니다.\n**팀 채팅 기록(카카오톡, 슬랙 등)**을 업로드하여 팀 프로필, 피로도 변화, 관계 네트워크를 종합적으로 진단합니다.",
+        "en": "A multi-dimensional collaboration diagnostic tool based on the 'MirrorOrg Team Analysis Case Study'.\nUpload your **team chat history (e.g., KakaoTalk, Slack)** to diagnose Team Profile, Fatigue Trajectory, and Relationship Network."
     },
     # Sidebar
     "sidebar_header": {"ko": "설정", "en": "Settings"},
     "language_selector": {"ko": "언어", "en": "Language"},
     "api_key_loaded": {"ko": "API 키가 안전하게 로드되었습니다.", "en": "API key loaded securely."},
-    "local_env_warning": {"ko": "⚠️ 로컬 환경에서 실행 중입니다.", "en": "⚠️ Running in a local environment."},
+    "local_env_warning": {"ko": "⚠️ API 키가 설정되지 않았습니다. 로컬 환경의 경우, 아래에 키를 입력해주세요.", "en": "⚠️ API key not set. For local environment, please enter your key below."},
     "api_key_input": {"ko": "Gemini API 키를 입력하세요:", "en": "Enter your Gemini API Key:"},
     "api_key_success": {"ko": "API 키 설정 완료!", "en": "API key configured successfully!"},
     "api_key_failure": {"ko": "API 키 설정 실패", "en": "API key configuration failed"},
     "api_key_info": {
-        "ko": "시작하려면 Gemini API 키를 입력해주세요. [API 키 발급받기](https://aistudio.google.com/app/apikey)",
-        "en": "Please enter your Gemini API key to start. [Get an API Key](https://aistudio.google.com/app/apikey)"
+        "ko": "시작하려면 Gemini API 키를 설정해주세요. [API 키 발급받기](https://aistudio.google.com/app/apikey)",
+        "en": "Please configure your Gemini API key to start. [Get an API Key](https://aistudio.google.com/app/apikey)"
     },
     # Main Content
     "upload_header": {"ko": "1. 채팅 기록 업로드", "en": "1. Upload Chat History"},
     "upload_info": {
-        "ko": "카카오톡 대화 '내보내기' > '텍스트 파일만' 저장 후 업로드하세요. 개인정보 보호를 위해 이름 등 민감정보를 수정하는 것을 권장합니다.",
-        "en": "Export your KakaoTalk chat ('Export Text Only') and upload the .txt file. For privacy, we recommend anonymizing names and sensitive information before uploading."
+        "ko": "팀 채팅 기록을 텍스트(.txt) 파일로 업로드하세요. 현재 **카카오톡 대화 형식**에 최적화되어 있습니다.\n**팁:** 카카오톡의 경우 '대화 내보내기' > '텍스트 파일만' 기능을 사용할 수 있습니다.",
+        "en": "Upload your team chat history as a text (.txt) file. Currently optimized for the **KakaoTalk chat format**.\n**Tip:** For KakaoTalk, you can use the 'Export Chat' > 'Export Text Only' feature."
     },
     "file_uploader_label": {"ko": "분석할 .txt 파일을 선택하세요.", "en": "Choose a .txt file to analyze."},
     "parsing_success": {"ko": "파일 파싱 성공! {count}개의 메시지를 발견했습니다.", "en": "File parsed successfully! Found {count} messages."},
@@ -99,33 +99,37 @@ with st.sidebar:
         key='lang_selector'
     )
     st.session_state.lang = 'ko' if lang_choice == '한국어' else 'en'
-    
-    try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        st.success(TEXTS["api_key_loaded"][st.session_state.lang])
-    except (FileNotFoundError, KeyError):
-        st.warning(TEXTS["local_env_warning"][st.session_state.lang])
-        api_key = st.text_input(TEXTS["api_key_input"][st.session_state.lang], type="password", key="api_key_input")
+    lang = st.session_state.lang # Define lang for convenience
 
+    # --- [Delta] Improved API Key Handling ---
+    api_key = None
+    # First, try to get the key from secrets (for Streamlit Cloud)
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success(TEXTS["api_key_loaded"][lang])
+    # If the key is not in secrets, show the input field (for local or missing secret)
+    else:
+        st.warning(TEXTS["local_env_warning"][lang])
+        api_key = st.text_input(TEXTS["api_key_input"][lang], type="password", key="api_key_input")
+
+    # Configure the API client if a key is available and not yet configured
     if api_key and not st.session_state.api_key_configured:
         try:
             genai.configure(api_key=api_key)
             st.session_state.api_key_configured = True
-            st.success(TEXTS["api_key_success"][st.session_state.lang])
+            st.success(TEXTS["api_key_success"][lang])
         except Exception as e:
-            st.error(f"{TEXTS['api_key_failure'][st.session_state.lang]}: {e}")
+            st.error(f"{TEXTS['api_key_failure'][lang]}: {e}")
     
     if not st.session_state.api_key_configured:
-        st.info(TEXTS["api_key_info"][st.session_state.lang])
+        st.info(TEXTS["api_key_info"][lang])
 
-# --- Define lang variable for convenience ---
-lang = st.session_state.lang
 
 # --- Main UI ---
 st.title(TEXTS["main_title"][lang])
 st.markdown(TEXTS["main_description"][lang])
 
-# --- Prompts ---
+# --- Prompts (Full prompts included) ---
 PROMPT_TEAM_PROFILE = """
 당신은 조직 심리 분석가입니다. 주어진 채팅 기록을 바탕으로, '미러오알지 팀 분석 사례' 문서의 '정체성 계수 맵'과 같이 각 팀원의 특성을 분석하고 결과를 JSON 형식으로 반환하세요.
 
