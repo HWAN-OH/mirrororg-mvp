@@ -1,6 +1,6 @@
 # app.py
 # 역할: 전체 워크플로우를 관리하고, 사용자 인터페이스를 렌더링합니다.
-# 최종 버전: 각 분석을 개별적으로 실행하고, AI가 파싱과 분석을 모두 담당합니다.
+# 최종 버전: 사용자가 제안한 새로운 데이터 구조를 처리하여 그래프를 생성합니다.
 
 import streamlit as st
 import pandas as pd
@@ -79,18 +79,40 @@ except (KeyError, AttributeError):
 
 # --- UI Rendering Functions ---
 def draw_network_graph(network_data, lang):
-    if not isinstance(network_data, dict) or 'nodes' not in network_data:
+    if not isinstance(network_data, list):
         st.warning(TEXTS["network_warning"][lang])
         if isinstance(network_data, str): st.code(network_data)
         elif isinstance(network_data, dict) and 'error' in network_data: st.error(network_data['error'])
         return
 
-    net = Network(height="600px", width="100%", bgcolor="#222222", font_color="white", notebook=True, directed=False)
-    color_map = {"high_risk": "#FF4136", "medium_risk": "#FF851B", "potential_risk": "#FFDC00", "stable": "#DDDDDD"}
-    for node in network_data.get('nodes', []): net.add_node(node.get('id'), label=node.get('label'), size=25)
-    for edge in network_data.get('edges', []):
-        edge_type = edge.get('type', 'stable')
-        net.add_edge(edge.get('from'), edge.get('to'), color=color_map.get(edge_type, "#DDDDDD"), width=4 if edge_type == 'high_risk' else 2)
+    net = Network(height="600px", width="100%", bgcolor="#222222", font_color="white", notebook=True, directed=True)
+    color_map = {"conflict": "#FF4136", "support": "#0074D9"}
+    
+    nodes = set()
+    for edge in network_data:
+        source = edge.get("source")
+        target = edge.get("target")
+        if source: nodes.add(source)
+        if target: nodes.add(target)
+
+    for node in nodes:
+        net.add_node(node, label=node, size=25)
+
+    for edge in network_data:
+        source = edge.get("source")
+        target = edge.get("target")
+        strength = edge.get("strength", 0.5)
+        edge_type = edge.get("type", "support")
+
+        if source and target:
+            net.add_edge(
+                source, 
+                target, 
+                value=strength, # Pyvis uses 'value' for edge width
+                color=color_map.get(edge_type, "#DDDDDD"),
+                title=f"Type: {edge_type}<br>Strength: {strength}"
+            )
+            
     try:
         net.save_graph("network_graph.html")
         with open("network_graph.html", 'r', encoding='utf-8') as f: html_content = f.read()
@@ -151,11 +173,23 @@ if api_configured:
                     st.session_state.timeline_result = analyzer.analyze_timeline(st.session_state.file_content)
 
             timeline_data = st.session_state.timeline_result
-            if isinstance(timeline_data, dict) and 'error' not in timeline_data:
+            if isinstance(timeline_data, list):
                 try:
-                    df = pd.DataFrame.from_dict(timeline_data, orient='index')
-                    df.index = pd.to_datetime(df.index).strftime('%Y-%m-%d')
-                    st.line_chart(df.sort_index())
+                    # Transform the new data structure for charting
+                    all_points = []
+                    for person_data in timeline_data:
+                        name = person_data.get("name")
+                        for point in person_data.get("fatigue_timeline", []):
+                            all_points.append({"date": point.get("date"), name: point.get("score")})
+                    
+                    if all_points:
+                        df = pd.DataFrame(all_points)
+                        df['date'] = pd.to_datetime(df['date'])
+                        # Group by date and take the mean in case of multiple entries for the same person on the same day
+                        df_grouped = df.groupby('date').mean()
+                        st.line_chart(df_grouped)
+                    else:
+                        st.warning(TEXTS["fatigue_warning"][lang])
                 except Exception:
                     st.error(TEXTS["raw_response_error"][lang])
                     st.json(timeline_data)
