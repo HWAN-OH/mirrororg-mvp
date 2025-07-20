@@ -1,6 +1,6 @@
 # app.py
 # 역할: 전체 워크플로우를 관리하고, 사용자 인터페이스를 렌더링합니다.
-# 최종 버전: 각 분석을 개별적으로 실행하여 안정성과 사용자 경험을 개선합니다.
+# 최종 버전: 'UploadedFile' 객체의 올바른 속성명(file_id)을 사용하여 오류를 수정합니다.
 
 import streamlit as st
 import pandas as pd
@@ -124,12 +124,12 @@ if api_configured:
 
     # This logic ensures that the dataframe is processed only once
     if uploaded_file is not None:
-        # Use file's unique id to check if it's a new file
-        if st.session_state.chat_df is None or uploaded_file.id != st.session_state.get('uploaded_file_id'):
+        # --- ERROR FIX: Use 'file_id' instead of 'id' ---
+        if st.session_state.chat_df is None or uploaded_file.file_id != st.session_state.get('uploaded_file_id'):
             try:
                 file_content = uploaded_file.getvalue().decode("utf-8")
                 st.session_state.chat_df = parsers.parse(file_content)
-                st.session_state.uploaded_file_id = uploaded_file.id
+                st.session_state.uploaded_file_id = uploaded_file.file_id # --- ERROR FIX ---
                 # Clear previous results when a new file is uploaded
                 st.session_state.profile_result = None
                 st.session_state.timeline_result = None
