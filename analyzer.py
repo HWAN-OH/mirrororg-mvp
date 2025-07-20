@@ -4,7 +4,6 @@ import streamlit as st
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ▶ 피로도 곡선 분석 프롬프트
 PROMPT_FATIGUE_JSON = """
 아래 팀 대화 데이터를 분석하여, 각 팀원별 날짜별 피로도(1~5, 날짜별 시계열)를 아래 JSON 형식으로 출력하세요.
 [예시]
@@ -17,7 +16,6 @@ PROMPT_FATIGUE_JSON = """
 {chat_log}
 """
 
-# ▶ 관계 네트워크 분석 프롬프트
 PROMPT_NETWORK_JSON = """
 아래 팀 대화 데이터를 분석하여, 반드시 각 관계를 'support'(지지/긍정) 또는 'conflict'(갈등/부정) 중 하나로 강제 분류해 아래 JSON 형식으로 출력하세요.
 [예시]
@@ -30,7 +28,6 @@ type은 반드시 'support' 또는 'conflict'로만 작성(unknown/neutral 불�
 {chat_log}
 """
 
-# ▶ 종합 보고서 분석 프롬프트 (강제채움/예시/면책 포함)
 PROMPT_COMPREHENSIVE_REPORT_KO = """
 # MirrorOrg 종합 분석 보고서 (테스트용)
 ## 1. 분석 개요
