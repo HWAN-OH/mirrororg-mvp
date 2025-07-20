@@ -179,5 +179,3 @@ if st.session_state.get('fatigue_data'):
 
 if st.session_state.get('network_data'):
     st.subheader(TEXTS["network_title"][lang])
-    network_data
-
