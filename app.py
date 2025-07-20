@@ -1,12 +1,11 @@
 # app.py
 # 역할: 전체 워크플로우를 관리하고, 사용자 인터페이스를 렌더링합니다.
-# 최종 버전: 사용자의 언어 설정을 analyzer에 전달하여, 해당 언어로 된 종합 보고서를 생성합니다.
+# 최종 버전: 'parsers.py'를 완전히 제거하고, 원본 텍스트를 직접 analyzer에 전달합니다.
 
 import streamlit as st
-import pandas as pd
 import google.generativeai as genai
 
-import parsers
+# parsers is no longer needed
 import analyzer
 
 # --- TEXTS 딕셔너리는 이전과 동일 (생략) ---
@@ -26,12 +25,10 @@ TEXTS = {
     },
     "upload_header": {"ko": "1. 채팅 기록 업로드", "en": "1. Upload Chat History"},
     "upload_info": {
-        "ko": "팀 채팅 기록을 텍스트(.txt) 파일로 업로드하세요. 현재 **카카오톡 대화 형식**에 최적화되어 있습니다.",
-        "en": "Upload your team chat history as a text (.txt) file. Currently optimized for the **KakaoTalk chat format**."
+        "ko": "팀 채팅 기록을 텍스트(.txt) 파일로 업로드하세요. 다양한 형식을 지원합니다.",
+        "en": "Upload your team chat history as a text (.txt) file. Various formats are supported."
     },
     "file_uploader_label": {"ko": "분석할 .txt 파일을 선택하세요.", "en": "Choose a .txt file to analyze."},
-    "parsing_success": {"ko": "파일 파싱 성공! {count}개의 메시지를 발견했습니다. ({format} 형식)", "en": "File parsed successfully! Found {count} messages. (Format: {format})"},
-    "parsing_error": {"ko": "지원하지 않는 파일 형식이거나 파일이 손상되었을 수 있습니다.", "en": "The file format is not supported or the file may be corrupted."},
     "analysis_button": {"ko": "종합 분석 보고서 생성하기", "en": "Generate Comprehensive Report"},
     "spinner_analysis": {"ko": "보고서를 생성 중입니다... (1~2분 소요될 수 있습니다)", "en": "Generating report... (This may take 1-2 minutes)"},
     "analysis_complete": {"ko": "✅ 보고서 생성이 완료되었습니다!", "en": "✅ Report generation complete!"},
@@ -81,19 +78,16 @@ if api_configured:
                 st.session_state.uploaded_file_id = uploaded_file.file_id
 
             file_content = uploaded_file.getvalue().decode("utf-8")
-            chat_df = parsers.parse(file_content)
+            
+            # Display a simple success message after upload
+            st.success(f"'{uploaded_file.name}' 파일이 성공적으로 업로드되었습니다. 이제 분석 버튼을 눌러주세요.")
+            
+            if st.button(TEXTS["analysis_button"][lang]):
+                with st.spinner(TEXTS["spinner_analysis"][lang]):
+                    # Pass the raw content directly to the analyzer
+                    st.session_state.report = analyzer.generate_report(file_content, lang=lang)
+                st.success(TEXTS["analysis_complete"][lang])
 
-            if isinstance(chat_df, pd.DataFrame):
-                detected_format = parsers.detect_format(file_content)
-                st.success(TEXTS["parsing_success"][lang].format(count=len(chat_df), format=detected_format))
-                
-                if st.button(TEXTS["analysis_button"][lang]):
-                    with st.spinner(TEXTS["spinner_analysis"][lang]):
-                        # Pass the selected language to the analyzer
-                        st.session_state.report = analyzer.generate_report(chat_df, lang=lang)
-                    st.success(TEXTS["analysis_complete"][lang])
-            else:
-                st.error(TEXTS["parsing_error"][lang])
         except Exception as e:
             st.error(f"{TEXTS['file_process_error'][lang]}: {e}")
     else:
