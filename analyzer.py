@@ -2,6 +2,8 @@ import openai
 import json
 import streamlit as st
 
+print("== PROMPT_NETWORK_JSON OK, {chat_log} 포함:", '{chat_log}' in PROMPT_NETWORK_JSON)
+
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 PROMPT_FATIGUE_JSON = """
