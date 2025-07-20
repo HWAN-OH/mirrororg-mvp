@@ -1,6 +1,7 @@
 import streamlit as st
 import analyzer
 import pandas as pd
+import time
 
 TEXTS = {
     "page_title": {"ko": "MirrorOrg 단계별 MVP", "en": "MirrorOrg Stepwise MVP"},
@@ -31,12 +32,10 @@ TEXTS = {
     "raw_llm": {"ko": "LLM 원본 응답(raw)", "en": "LLM Raw Response"},
 }
 
-# 1. Page config & 언어 설정
 st.set_page_config(page_title=TEXTS["page_title"]["en"], page_icon="🤖", layout="wide")
 if 'lang' not in st.session_state:
     st.session_state.lang = 'ko'
 
-# 2. Sidebar (Language Switch)
 with st.sidebar:
     st.header(TEXTS["sidebar_header"][st.session_state.lang])
     lang_choice = st.selectbox(
@@ -47,7 +46,6 @@ with st.sidebar:
     st.session_state.lang = 'ko' if lang_choice == '한국어' else 'en'
 lang = st.session_state.lang
 
-# 3. Main UI
 st.title(TEXTS["main_title"][lang])
 st.markdown(TEXTS["main_description"][lang])
 
@@ -61,32 +59,46 @@ if not uploaded_file:
 file_content = uploaded_file.getvalue().decode("utf-8")
 st.success(f"'{uploaded_file.name}' 파일이 업로드되었습니다.")
 
-# 4. 챕터별 분석 실행
+# 샘플 슬라이스 함수
+MAX_LINES = 1000
+def get_short_content(file_content):
+    lines = file_content.splitlines()
+    if len(lines) > MAX_LINES:
+        st.warning(f"대화가 {len(lines)}줄로 너무 깁니다. 최근 {MAX_LINES}줄만 샘플 분석합니다.")
+        lines = lines[-MAX_LINES:]  # 최근 N줄
+    return "\n".join(lines)
+
 st.header(TEXTS["chapter_header"][lang])
 col1, col2, col3 = st.columns(3)
 
-# 챕터1: 종합 보고서
 with col1:
     if st.button(TEXTS["chapter1_btn"][lang], use_container_width=True):
-        with st.spinner("보고서 생성 중..."):
-            st.session_state.report = analyzer.generate_report(file_content, lang=lang)
+        with st.spinner("보고서 생성 중... (최대 1분 소요될 수 있음)"):
+            start = time.time()
+            report = analyzer.generate_report(file_content, lang=lang)
+            elapsed = time.time() - start
+            sample_mode = False
+            if elapsed > 60:
+                st.warning("분석이 오래 걸려 최근 1000줄만 샘플/요약 모드로 자동 전환합니다.")
+                short_content = get_short_content(file_content)
+                report = analyzer.generate_report(short_content, lang=lang, sample_mode=True)
+                st.info("샘플(최근 1000줄) 분석 결과입니다.")
+                sample_mode = True
+            st.session_state.report = report
         st.toast(TEXTS["analysis_complete"][lang], icon="✅")
 
-# 챕터2: 피로도 곡선
 with col2:
     if st.button(TEXTS["chapter2_btn"][lang], use_container_width=True):
         with st.spinner("피로도 분석 중..."):
             st.session_state.fatigue_data = analyzer.analyze_fatigue_json(file_content, lang=lang)
         st.toast(TEXTS["analysis_complete"][lang], icon="✅")
 
-# 챕터3: 관계 네트워크
 with col3:
     if st.button(TEXTS["chapter3_btn"][lang], use_container_width=True):
         with st.spinner("관계 네트워크 분석 중..."):
             st.session_state.network_data = analyzer.analyze_network_json(file_content, lang=lang)
         st.toast(TEXTS["analysis_complete"][lang], icon="✅")
 
-# 5. 결과 확인(챕터별 데이터가 생성된 후에만!)
 st.header(TEXTS["results_header"][lang])
 
 if st.session_state.get('report'):
