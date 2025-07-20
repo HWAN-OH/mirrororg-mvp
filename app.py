@@ -1,6 +1,6 @@
 # app.py
 # 역할: 전체 워크플로우를 관리하고, 사용자 인터페이스를 렌더링합니다.
-# 최종 버전: 단일 '종합 분석 보고서'를 생성하고, 그 결과를 Markdown으로 출력합니다.
+# 최종 버전: 사용자의 언어 설정을 analyzer에 전달하여, 해당 언어로 된 종합 보고서를 생성합니다.
 
 import streamlit as st
 import pandas as pd
@@ -89,7 +89,8 @@ if api_configured:
                 
                 if st.button(TEXTS["analysis_button"][lang]):
                     with st.spinner(TEXTS["spinner_analysis"][lang]):
-                        st.session_state.report = analyzer.generate_report(chat_df)
+                        # Pass the selected language to the analyzer
+                        st.session_state.report = analyzer.generate_report(chat_df, lang=lang)
                     st.success(TEXTS["analysis_complete"][lang])
             else:
                 st.error(TEXTS["parsing_error"][lang])
