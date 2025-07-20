@@ -1,26 +1,28 @@
 # analyzer.py
-# 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 사용자가 선택한 언어로 '종합 분석 보고서'를 생성합니다.
-# 최종 버전: 다국어 프롬프트를 탑재하여 완전한 현지화(Localization)를 구현합니다.
+# 역할: 어떤 형태의 원본 채팅 기록이든 직접 입력받아, 파싱과 분석을 한 번에 수행하여 최종 보고서를 생성합니다.
+# 최종 버전: 'parsers.py'를 완전히 대체하는 통합 프롬프트를 사용합니다.
 
 import google.generativeai as genai
 import pandas as pd
 
-# --- [Lumina & Delta] Bilingual Prompt Engineering ---
+# --- [Lumina & Delta] The Ultimate Unified Prompt (Parser + Analyzer) ---
 
-# --- 1. Korean Prompt ---
-PROMPT_KO = """
+PROMPT_UNIFIED_REPORT = """
 ### 페르소나 및 미션 (Persona & Mission)
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 실행하는 최고 수준의 AI 조직 분석가입니다.
-당신의 유일한 임무는 주어진 팀의 채팅 기록을 분석하여, 팀의 붕괴를 막고 성장을 돕기 위한 **'종합 분석 보고서'**를 한국어로 작성하는 것입니다.
-보고서는 반드시 '미러오알지'의 핵심 방법론과 '프로젝트 에코' 분석 사례를 참고하여, 아래 지정된 Markdown 형식에 따라 작성해야 합니다.
+당신의 유일한 임무는 **어떤 형식이든 상관없이 주어진 원본 채팅 기록(raw text log)을 직접 해석**하여, 팀의 붕괴를 막고 성장을 돕기 위한 **'종합 분석 보고서'**를 작성하는 것입니다.
 
 ### 프레임워크 핵심 지식: 미러오알지(MirrorOrg) 방법론
 * **정의:** 조직을 '복잡계'로 보고, 정성적 대화를 정량적 데이터와 통찰력으로 변환하여 시스템의 숨겨진 역학을 진단하고 예측하는 프레임워크.
 * **프로세스:** 진단 (팀 프로필 분석) → 예측 (피로도 변화, 관계 네트워크 분석)
-* **사고 과정:** 채팅 기록에서 '프로젝트 에코' 사례와 유사한 패턴(예: 전략적 발언, 감정적 호소)을 찾아, 이를 '미러오알지'의 개념(정체성 계수, 정서적 부채)과 연결하여 해석하고 보고서를 작성합니다.
+* **사고 과정 (Chain of Thought):**
+    1.  **파싱 및 정규화:** 먼저, 입력된 원본 텍스트에서 날짜, 발언자, 메시지 내용을 추출하여 내부적으로 시간 순서에 맞게 재구성합니다. (입력 형식은 카카오톡, 슬랙 등 다양할 수 있습니다.)
+    2.  **패턴 인식:** 재구성된 대화 내용에서 '프로젝트 에코' 사례와 유사한 패턴(예: 전략적 발언, 감정적 호소, 의견 충돌 등)을 찾습니다.
+    3.  **지식 연결:** 인식된 패턴을 '미러오알지'의 개념(정체성 계수, 정서적 부채, 구조적 긴장 등)과 연결하여 해석합니다.
+    4.  **보고서 작성:** 해석된 내용을 바탕으로, 아래의 보고서 형식에 맞춰 각 섹션을 채워나갑니다.
 
 ---
-### 최종 보고서 출력 형식 (Markdown, 한국어)
+### 최종 보고서 출력 형식 (Markdown)
 
 # MirrorOrg 종합 분석 보고서
 
@@ -37,8 +39,8 @@ PROMPT_KO = """
 
 | 이름 (가명) | 감정 | 사고 | 표현 | 가치 | 편향 | 핵심 역할 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| (예: Julian) | ⚖️ 5 | 🧠 9 | ✏️ 6 | ⭐ 9 | 🎯 7 | The Driver (전략 중심) |
 | (참여자 A) | (점수) | (점수) | (점수) | (점수) | (점수) | (역할) |
+| (참여자 B) | (점수) | (점수) | (점수) | (점수) | (점수) | (역할) |
 
 **분석 근거:**
 * **[참여자 A 이름]:** (해당 참여자의 계수가 왜 그렇게 판단되었는지, 채팅 내용의 구체적인 예시를 들어 1~2 문장으로 서술)
@@ -60,69 +62,10 @@ PROMPT_KO = """
 (분석 내용을 종합하여, 이 팀의 가장 큰 시스템적 강점과 리스크는 무엇인지 2~3 문장으로 요약하고, 개선을 위한 간단한 제언을 덧붙입니다.)
 
 ---
-### [분석 대상 채팅 기록]
+### [분석 대상 원본 채팅 기록]
 {chat_log}
 ---
-### [종합 분석 보고서 (Markdown, 한국어)]
-"""
-
-# --- 2. English Prompt ---
-PROMPT_EN = """
-### Persona & Mission
-You are a world-class AI organizational analyst executing the 'MirrorOrg' framework.
-Your sole mission is to analyze the provided team chat log and write a **'Comprehensive Analysis Report'** in English to prevent team collapse and foster growth.
-The report must adhere to the specified Markdown format, referencing the core methodology of 'MirrorOrg' and the 'Project Echo' case study.
-
-### Core Knowledge: The MirrorOrg Methodology
-* **Definition:** A framework that treats human organizations as 'Complex Systems,' diagnosing and predicting hidden dynamics by modeling qualitative conversations into quantitative data and insights.
-* **Process:** Diagnosis (e.g., Team Profile Analysis) → Prediction (e.g., Fatigue Trajectory, Relationship Network Analysis).
-* **Chain of Thought:** You must first identify patterns in the chat log similar to the 'Project Echo' case (e.g., strategic directives, emotional appeals). Then, connect these patterns to MirrorOrg concepts (e.g., Identity Coefficients, Emotional Debt). Finally, write the report based on this interpretation.
-
----
-### Final Report Output Format (Markdown, English)
-
-# MirrorOrg Comprehensive Analysis Report
-
-## 1. Analysis Overview
-* **Analysis Period:** [Start date of chat log] - [End date of chat log]
-* **Participants:** [List of key participants]
-* **Executive Summary:** (A 2-3 sentence summary of the key findings.)
-
----
-
-## 2. Phase 1: Diagnosis
-### 2.1. Identity Coefficient Map
-Diagnoses the overall team composition by identifying member traits and roles.
-
-| Name (Alias) | Emotion | Cognition | Expression | Value | Bias | Core Role |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| (e.g., Julian) | ⚖️ 5 | 🧠 9 | ✏️ 6 | ⭐ 9 | 🎯 7 | The Driver (Strategy-focused) |
-| (Participant A) | (Score) | (Score) | (Score) | (Score) | (Score) | (Role) |
-
-**Analysis Rationale:**
-* **[Participant A's Name]:** (Describe in 1-2 sentences why the coefficients were scored that way, using specific examples from the chat log.)
-
----
-
-## 3. Phase 2: Prediction
-### 3.1. Fatigue Trajectory
-* **Key Observation:** (e.g., A pattern of spiking fatigue was observed for certain members in late [Month], suggesting an accumulation of 'Emotional Debt'.)
-* **Risk Analysis:** (e.g., This trend increases the team's risk of burnout, with the burden concentrating on members with high Emotion coefficients.)
-
-### 3.2. Relationship Network
-* **Key Observation:** (e.g., Recurring disagreements were observed between the leader A's result-oriented communication and member B's state-expressive communication.)
-* **Risk Analysis:** (e.g., This represents a 'structural tension' rather than a personal issue. Without a mediation mechanism, it could escalate into conflict.)
-
----
-
-## 4. Conclusion & Recommendations
-(Summarize the team's greatest systemic strengths and risks in 2-3 sentences and add brief recommendations for improvement.)
-
----
-### [Chat Log for Analysis]
-{chat_log}
----
-### [Comprehensive Analysis Report (Markdown, English)]
+### [종합 분석 보고서 (Markdown 형식)]
 """
 
 def call_gemini_api(prompt: str, chat_log: str) -> str | None:
@@ -137,19 +80,18 @@ def call_gemini_api(prompt: str, chat_log: str) -> str | None:
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
 
         if not response.parts:
-            return "## Analysis Failed\n\nThe API refused to generate a response. This may be due to sensitive content in the input data."
+            return "## 분석 실패\n\nAPI가 응답 생성을 거부했습니다. 입력 데이터에 민감한 내용이 포함되었을 수 있습니다."
 
         return response.text
     except Exception as e:
-        return f"## Analysis Failed\n\nAn unexpected error occurred during the API call:\n\n```\n{str(e)}\n```"
+        return f"## 분석 실패\n\nAPI 호출 중 예상치 못한 오류가 발생했습니다:\n\n```\n{str(e)}\n```"
 
-def generate_report(chat_df: pd.DataFrame, lang: str = 'ko') -> str | None:
+def generate_report(raw_chat_content: str, lang: str = 'ko') -> str | None:
     """
-    Generates a single comprehensive report from the chat data in the specified language.
+    Generates a single comprehensive report directly from the raw chat content.
+    The language parameter is kept for future prompt localization if needed.
     """
-    # Select the prompt based on the language
-    prompt = PROMPT_KO if lang == 'ko' else PROMPT_EN
-    
-    # Include date information in the log for better temporal analysis
-    chat_log = "\n".join(chat_df.apply(lambda row: f"{row['date']}: [{row['speaker']}] {row['message']}", axis=1))
-    return call_gemini_api(prompt, chat_log)
+    # For now, we use one powerful prompt that understands Korean context.
+    # If English reports are needed, a separate PROMPT_EN would be used here.
+    prompt = PROMPT_UNIFIED_REPORT
+    return call_gemini_api(prompt, raw_chat_content)
