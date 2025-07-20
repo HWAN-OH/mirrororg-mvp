@@ -4,7 +4,6 @@ import streamlit as st
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 표준 분석 프롬프트
 PROMPT_COMPREHENSIVE_REPORT_KO = """
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 실행하는 AI 조직 분석가입니다.
 주어진 팀 채팅 기록 전체를 분석하여, 아래 템플릿의 **종합 분석 보고서**를 반드시 마크다운으로 출력하세요.
@@ -33,7 +32,6 @@ PROMPT_COMPREHENSIVE_REPORT_KO = """
 {chat_log}
 """
 
-# “샘플/요약 모드” 전용 프롬프트
 PROMPT_COMPREHENSIVE_REPORT_KO_SAMPLE = """
 대화가 길거나 분석 시간이 오래 걸릴 경우, 반드시 최근 1000줄(또는 최신 1주)만을 기준으로
 가장 핵심 이슈와 대표적 변화 3가지만 간략히 요약해서 아래 템플릿의 종합 보고서를 작성하세요.
