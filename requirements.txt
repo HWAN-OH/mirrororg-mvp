@@ -5,3 +5,4 @@ matplotlib
 networkx
 tiktoken
 hangul-romanize
+fpdf
