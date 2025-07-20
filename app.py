@@ -4,7 +4,6 @@ import pandas as pd
 import time
 import tiktoken
 
-# 한글→영문 이름 자동 치환 매핑 + 로마자 표기(미등록시)
 NAME_MAP = {
     "오승환": "Seunghwan Oh",
     "박유미": "Yumi Park",
@@ -171,4 +170,14 @@ if st.session_state.get('fatigue_data'):
                 st.caption(NOTICE)
         except Exception as e:
             st.error(f"{TEXTS['no_fatigue_data'][lang]}: {e}")
-    elif fatigue_data and "raw_response"
+    elif fatigue_data and "raw_response" in fatigue_data:
+        st.warning(TEXTS["raw_llm"][lang] + ":")
+        st.code(fatigue_data["raw_response"])
+        st.info(TEXTS["no_fatigue_data"][lang])
+    else:
+        st.info(TEXTS["no_fatigue_data"][lang])
+
+if st.session_state.get('network_data'):
+    st.subheader(TEXTS["network_title"][lang])
+    network_data
+
