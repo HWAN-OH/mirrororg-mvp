@@ -1,7 +1,7 @@
 import google.generativeai as genai
 import json
 
-# 1. 피로도 곡선 분석 프롬프트 (JSON)
+# 1. 피로도 곡선 분석 프롬프트 (JSON, 디폴트값 강제)
 PROMPT_FATIGUE_JSON = """
 {lang_header}
 아래 팀 대화 데이터를 분석하여, 각 팀원별 날짜별 피로도(1~5, 날짜별 시계열)를 아래 JSON 형식으로 출력하세요.
@@ -12,12 +12,19 @@ PROMPT_FATIGUE_JSON = """
   {{"name": "유미", "fatigue_timeline": [{{"date": "2025-07-01", "score": 1}}, ...]}}
 ]
 
-반드시 JSON만 출력하세요. 실패 시 {{"error": "..."}} 형태로 반환하세요.
+만약 피로도 추정이 불가능하면, 반드시 각 팀원별로 'score': 3(중립값)로 채워 아래와 같이 반환하세요. 절대 설명문, 빈 응답, 오류 메시지만 반환하지 마세요.
+
+[불가 예시]
+[
+  {{"name": "OOO", "fatigue_timeline": [{{"date": "YYYY-MM-DD", "score": 3}}]}}
+]
+
+항상 반드시 위 예시 구조의 JSON 배열을 반환해야 합니다.
 ---
 {chat_log}
 """
 
-# 2. 관계 네트워크 분석 프롬프트 (JSON)
+# 2. 관계 네트워크 분석 프롬프트 (실질적 관계만, 빈 배열 허용)
 PROMPT_NETWORK_JSON = """
 {lang_header}
 아래 팀 대화 데이터를 분석하여, 팀원 간 관계 네트워크를 아래 JSON 형식으로 출력하세요.
@@ -28,7 +35,9 @@ PROMPT_NETWORK_JSON = """
   {{"source": "유미", "target": "소피아", "strength": 0.5, "type": "support"}}
 ]
 
-반드시 JSON만 출력하세요. 실패 시 {{"error": "..."}} 형태로 반환하세요.
+링크(엣지)는 반드시 3회 이상 직접 상호작용(질문, 답변, 감정 교환, 충돌, 지지 등)이 있는 인물 쌍에만 추가하세요.
+그 외에는 빈 배열([])을 반드시 반환하세요. 절대 설명문, 오류 메시지, 빈 응답만 반환하지 마세요.
+
 ---
 {chat_log}
 """
@@ -110,7 +119,6 @@ You are a top-level organizational analyst running the 'MirrorOrg' framework. Yo
 ### [Comprehensive Analysis Report (Markdown)]
 """
 
-# LLM 호출 함수
 def call_gemini_api(prompt: str) -> str:
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -120,7 +128,6 @@ def call_gemini_api(prompt: str) -> str:
     except Exception as e:
         return json.dumps({"error": f"API 오류: {e}"})
 
-# 5. 피로도 곡선 챕터 분석 함수 (디버깅: 원본 응답도 반환)
 def analyze_fatigue_json(chat_log: str, lang: str = 'ko'):
     lang_header = "[언어: 한국어]" if lang == 'ko' else "[Language: English]"
     prompt = PROMPT_FATIGUE_JSON.format(chat_log=chat_log, lang_header=lang_header)
@@ -130,7 +137,6 @@ def analyze_fatigue_json(chat_log: str, lang: str = 'ko'):
     except Exception:
         return {"error": "json.loads 실패", "raw_response": result}
 
-# 6. 관계 네트워크 챕터 분석 함수 (디버깅: 원본 응답도 반환)
 def analyze_network_json(chat_log: str, lang: str = 'ko'):
     lang_header = "[언어: 한국어]" if lang == 'ko' else "[Language: English]"
     prompt = PROMPT_NETWORK_JSON.format(chat_log=chat_log, lang_header=lang_header)
@@ -140,7 +146,6 @@ def analyze_network_json(chat_log: str, lang: str = 'ko'):
     except Exception:
         return {"error": "json.loads 실패", "raw_response": result}
 
-# 7. 종합 분석 보고서 (마크다운)
 def call_gemini_api_markdown(prompt: str, chat_log: str) -> str:
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -157,3 +162,4 @@ def generate_report(raw_chat_content: str, lang: str = 'ko') -> str:
     else:
         prompt = PROMPT_COMPREHENSIVE_REPORT_EN
     return call_gemini_api_markdown(prompt, raw_chat_content)
+
