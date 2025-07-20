@@ -1,29 +1,37 @@
 # analyzer.py
 # 역할: 원본 채팅 기록을 직접 분석하여, 각 시각화에 필요한 데이터를 개별적으로 생성합니다.
-# 최종 버전: 프롬프트를 극도로 단순화하여 LLM의 작업 부하를 최소화하고, 데이터 생성에만 집중하도록 합니다.
+# 최종 버전: 사용자가 제안한 'Strong Prompt'와 새로운 JSON 템플릿을 적용하여 안정성을 극대화합니다.
 
 import google.generativeai as genai
 import json
 import pandas as pd
 import re
 
-# --- [Delta & Lumina] Radically Simplified & Direct Prompts ---
+# --- [Lumina & Delta] Final User-Defined Strong Prompts ---
 
-PROMPT_TEAM_PROFILE = """
+PROMPT_HEADER = """
 ### TASK
-Analyze the provided chat log to determine the 5 Identity Coefficients and a Core Role for each participant.
+Your single task is to analyze the entire provided chat log and extract specific data.
+You MUST respond with ONLY a valid JSON that strictly follows the template provided in the "OUTPUT FORMAT" section.
+Do not include any other text, explanations, or markdown formatting. Analyze ALL participants and relationships found in the chat log; the example is only for demonstrating the format.
 
-### RULES
-1.  Identify all unique participants from the chat log.
-2.  For each person, score the following coefficients on a scale of 1-10: `emotion_score`, `cognition_score`, `expression_score`, `value_score`, `bias_score`.
-3.  Assign a concise `core_role` based on their communication patterns (e.g., "The Driver", "The Mediator", "The Empath").
-4.  Your response MUST be ONLY a valid JSON array. Do not include any text, explanations, or markdown formatting before or after the JSON.
+### CHAT LOG TO ANALYZE
+{chat_log}
+---
+### JSON OUTPUT
+"""
 
-### EXAMPLE OUTPUT FORMAT
+PROMPT_TEAM_PROFILE = PROMPT_HEADER + """
+### TASK-SPECIFIC INSTRUCTIONS
+- Analyze each participant's characteristics based on their messages.
+- Score the 5 coefficients (emotion, cognition, expression, value, bias) on a scale of 1-10.
+- Assign a concise Core Role.
+
+### OUTPUT FORMAT
 ```json
 [
   {
-    "name": "Participant A",
+    "name": "Participant Name",
     "emotion_score": 5,
     "cognition_score": 9,
     "expression_score": 6,
@@ -33,68 +41,48 @@ Analyze the provided chat log to determine the 5 Identity Coefficients and a Cor
   }
 ]
 ```
-
-### CHAT LOG TO ANALYZE
-{chat_log}
----
-### JSON OUTPUT
 """
 
-PROMPT_FATIGUE_TIMELINE = """
-### TASK
-Analyze the provided chat log to estimate the daily fatigue level for each participant.
+PROMPT_FATIGUE_TIMELINE = PROMPT_HEADER + """
+### TASK-SPECIFIC INSTRUCTIONS
+- This task is to extract the fatigue score for each team member by date.
+- **Fatigue Score:** Estimate on a scale of 1-5 based on tone, frequency of emotional expressions, complaints, etc.
+- **Date Grouping:** Group the scores by the dates that appear in the chat log.
 
-### RULES
-1.  Fatigue is scored from 1 (very low) to 10 (near burnout).
-2.  Estimate a score for each person for each day they are mentioned or active in the log.
-3.  Your response MUST be ONLY a valid JSON object where keys are dates in "YYYY-MM-DD" format. Do not include any text, explanations, or markdown formatting before or after the JSON.
-
-### EXAMPLE OUTPUT FORMAT
+### OUTPUT FORMAT
 ```json
-{
-  "2023-10-20": {
-    "Participant A": 5,
-    "Participant B": 9
+[
+  {
+    "name": "Participant A",
+    "fatigue_timeline": [
+      {"date": "YYYY-MM-DD", "score": 2},
+      {"date": "YYYY-MM-DD", "score": 3}
+    ]
   },
-  "2023-10-21": {
-    "Participant A": 3,
-    "Participant B": 4
+  {
+    "name": "Participant B",
+    "fatigue_timeline": [
+      {"date": "YYYY-MM-DD", "score": 4},
+      {"date": "YYYY-MM-DD", "score": 5}
+    ]
   }
-}
+]
 ```
-
-### CHAT LOG TO ANALYZE
-{chat_log}
----
-### JSON OUTPUT
 """
 
-PROMPT_CONFLICT_NETWORK = """
-### TASK
-Analyze the provided chat log to model the relationships between participants as a network graph.
+PROMPT_CONFLICT_NETWORK = PROMPT_HEADER + """
+### TASK-SPECIFIC INSTRUCTIONS
+- This task is to extract the relationship network between team members.
+- **Relationship Type:** Classify the relationship between two people as either "conflict" or "support".
+- **Strength:** Estimate the strength of that relationship on a scale of 0.1 to 1.0.
 
-### RULES
-1.  All participants are nodes. An interaction between two people is an edge.
-2.  Classify each edge's relationship `type` as one of the following strings: "high_risk", "medium_risk", "potential_risk", "stable".
-3.  Your response MUST be ONLY a valid JSON object with "nodes" and "edges" keys. Do not include any text, explanations, or markdown formatting before or after the JSON.
-
-### EXAMPLE OUTPUT FORMAT
+### OUTPUT FORMAT
 ```json
-{
-  "nodes": [
-    {"id": "Participant A", "label": "Participant A"},
-    {"id": "Participant B", "label": "Participant B"}
-  ],
-  "edges": [
-    {"from": "Participant A", "to": "Participant B", "type": "medium_risk"}
-  ]
-}
+[
+  {"source": "Participant A", "target": "Participant B", "strength": 0.8, "type": "conflict"},
+  {"source": "Participant B", "target": "Participant C", "strength": 0.4, "type": "support"}
+]
 ```
-
-### CHAT LOG TO ANALYZE
-{chat_log}
----
-### JSON OUTPUT
 """
 
 def call_gemini_api(prompt: str, chat_log: str) -> dict | list | str | None:
