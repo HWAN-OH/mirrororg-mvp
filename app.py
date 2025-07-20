@@ -4,6 +4,22 @@ import pandas as pd
 import time
 import tiktoken
 
+# 한글→영문 이름 자동 치환 매핑
+NAME_MAP = {
+    "오승환": "Seunghwan Oh",
+    "박유미": "Yumi Park",
+    "현진": "Hyunjin",
+    "박원준": "Wonjoon Park",
+    "박법준": "Beobjun Park",
+    "김재용": "Jaeyong Kim",
+    "김진관": "Jingwan Kim",
+    "양석준": "Seokjun Yang",
+    "JD": "JD"
+    # 실제 인물 추가 가능
+}
+def to_eng_name(name):
+    return NAME_MAP.get(name, name)
+
 TEXTS = {
     "page_title": {"ko": "MirrorOrg 단계별 MVP", "en": "MirrorOrg Stepwise MVP"},
     "main_title": {"ko": "🪞 MirrorOrg 단계별 팀 분석", "en": "🪞 MirrorOrg Stepwise Team Analysis"},
@@ -60,9 +76,9 @@ if not uploaded_file:
 file_content = uploaded_file.getvalue().decode("utf-8")
 st.success(f"'{uploaded_file.name}' 파일이 업로드되었습니다.")
 
-# 자동 토큰 슬라이싱 함수
+# 최대 2000줄+토큰 슬라이싱
 MAX_TOKENS = 14000
-MAX_LINES = 1000
+MAX_LINES = 2000
 
 def count_tokens(text, model="gpt-3.5-turbo"):
     encoding = tiktoken.encoding_for_model(model)
@@ -70,8 +86,9 @@ def count_tokens(text, model="gpt-3.5-turbo"):
 
 def get_short_content(file_content):
     lines = file_content.splitlines()
-    short_text = "\n".join(lines[-MAX_LINES:])  # 최근 N줄 우선
-    # 토큰 길이 초과시 반복 슬라이스
+    if len(lines) > MAX_LINES:
+        st.warning(f"분석 데이터가 많아 최신 {MAX_LINES}줄(약 2개월치)만 사용합니다.")
+    short_text = "\n".join(lines[-MAX_LINES:])  # 최근 2000줄 우선
     while count_tokens(short_text) > MAX_TOKENS and len(lines) > 50:
         lines = lines[-(len(lines)//2):]
         short_text = "\n".join(lines)
@@ -90,10 +107,10 @@ with col1:
             report = analyzer.generate_report(short_content, lang=lang, sample_mode=True)
             elapsed = time.time() - start
             if elapsed > 60:
-                st.warning("분석이 오래 걸려 최근 1000줄 샘플 분석으로 자동 전환합니다.")
+                st.warning("분석이 오래 걸려 최신 2000줄 샘플 분석으로 자동 전환합니다.")
                 short_content = get_short_content(file_content)
                 report = analyzer.generate_report(short_content, lang=lang, sample_mode=True)
-                st.info("샘플(최근 1000줄) 분석 결과입니다.")
+                st.info("샘플(최근 2000줄) 분석 결과입니다.")
             st.session_state.report = report
         st.toast(TEXTS["analysis_complete"][lang], icon="✅")
 
@@ -114,6 +131,7 @@ st.header(TEXTS["results_header"][lang])
 if st.session_state.get('report'):
     st.subheader(TEXTS["report_title"][lang])
     st.markdown(st.session_state.report, unsafe_allow_html=True)
+    st.caption("본 분석 결과의 인물 이름은 한글에서 영문으로 자동 변환되었습니다. (폰트/호환성)")
     st.divider()
 
 if st.session_state.get('fatigue_data'):
@@ -123,20 +141,16 @@ if st.session_state.get('fatigue_data'):
         try:
             lines = []
             for item in fatigue_data:
-                if "name" not in item or "fatigue_timeline" not in item:
-                    st.error(f"필드 누락: {item}")
-                    continue
+                eng_name = to_eng_name(item["name"])
                 for d in item["fatigue_timeline"]:
-                    if "date" not in d or "score" not in d:
-                        st.error(f"날짜/점수 누락: {d}")
-                        continue
-                    lines.append({"name": item["name"], "date": d["date"], "score": d["score"]})
+                    lines.append({"name": eng_name, "date": d["date"], "score": d["score"]})
             if not lines:
                 st.warning("시각화할 데이터가 없음")
             else:
                 df = pd.DataFrame(lines)
                 chart_data = df.pivot(index="date", columns="name", values="score")
                 st.line_chart(chart_data)
+                st.caption("본 분석 결과의 인물 이름은 한글에서 영문으로 자동 변환되었습니다. (폰트/호환성)")
         except Exception as e:
             st.error(f"{TEXTS['no_fatigue_data'][lang]}: {e}")
     elif fatigue_data and "raw_response" in fatigue_data:
@@ -155,14 +169,14 @@ if st.session_state.get('network_data'):
             import matplotlib.pyplot as plt
             G = nx.Graph()
             for link in network_data:
-                if "source" not in link or "target" not in link:
-                    st.error(f"필드 누락: {link}")
-                    continue
-                G.add_edge(link["source"], link["target"], weight=link.get("strength", 1), type=link.get("type", ""))
+                source = to_eng_name(link["source"])
+                target = to_eng_name(link["target"])
+                G.add_edge(source, target, weight=link.get("strength", 1), type=link.get("type", ""))
             fig, ax = plt.subplots()
             pos = nx.spring_layout(G)
             nx.draw(G, pos, with_labels=True, ax=ax, node_color='lightblue', edge_color='gray')
             st.pyplot(fig)
+            st.caption("본 분석 결과의 인물 이름은 한글에서 영문으로 자동 변환되었습니다. (폰트/호환성)")
         except Exception as e:
             st.error(f"{TEXTS['no_network_data'][lang]}: {e}")
     elif network_data and "raw_response" in network_data:
