@@ -91,7 +91,8 @@ if api_configured:
                     st.success(TEXTS["analysis_complete"][lang])
                 else:
                     st.error(TEXTS["participant_error"][lang])
-                    st.code(participants, language=None) # Show the raw error response
+                    # Show the raw error response if participant identification fails
+                    st.code(participants, language=None) 
 
         except Exception as e:
             st.error(f"{TEXTS['file_process_error'][lang]}: {e}")
