@@ -4,7 +4,33 @@ import streamlit as st
 
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ▶ 공란/X 불허, 예시·강제 포함한 종합 분석 프롬프트
+# ▶ 피로도 곡선 분석 프롬프트
+PROMPT_FATIGUE_JSON = """
+아래 팀 대화 데이터를 분석하여, 각 팀원별 날짜별 피로도(1~5, 날짜별 시계열)를 아래 JSON 형식으로 출력하세요.
+[예시]
+[
+  {"name": "현진", "fatigue_timeline": [{"date": "2025-07-01", "score": 2}, ...]},
+  {"name": "유미", "fatigue_timeline": [{"date": "2025-07-01", "score": 1}, ...]}
+]
+피로도 추정이 불가능하면 각 팀원별로 'score': 3(중립값)로 채워 반드시 반환하세요. 설명문, 오류만 반환 금지.
+---
+{chat_log}
+"""
+
+# ▶ 관계 네트워크 분석 프롬프트
+PROMPT_NETWORK_JSON = """
+아래 팀 대화 데이터를 분석하여, 반드시 각 관계를 'support'(지지/긍정) 또는 'conflict'(갈등/부정) 중 하나로 강제 분류해 아래 JSON 형식으로 출력하세요.
+[예시]
+[
+  {"source": "현진", "target": "유미", "strength": 0.8, "type": "conflict"},
+  {"source": "유미", "target": "소피아", "strength": 0.5, "type": "support"}
+]
+type은 반드시 'support' 또는 'conflict'로만 작성(unknown/neutral 불허). 각 링크에 간단 근거(1줄) 포함.
+---
+{chat_log}
+"""
+
+# ▶ 종합 보고서 분석 프롬프트 (강제채움/예시/면책 포함)
 PROMPT_COMPREHENSIVE_REPORT_KO = """
 # MirrorOrg 종합 분석 보고서 (테스트용)
 ## 1. 분석 개요
@@ -77,32 +103,6 @@ PROMPT_COMPREHENSIVE_REPORT_EN = """
 ---
 This result is for testing only and needs further expert validation before real use.
 Chat log:
-{chat_log}
-"""
-
-# ▶ 피로도 분석 JSON 프롬프트 (꼭 포함!)
-PROMPT_FATIGUE_JSON = """
-아래 팀 대화 데이터를 분석하여, 각 팀원별 날짜별 피로도(1~5, 날짜별 시계열)를 아래 JSON 형식으로 출력하세요.
-[예시]
-[
-  {"name": "현진", "fatigue_timeline": [{"date": "2025-07-01", "score": 2}, ...]},
-  {"name": "유미", "fatigue_timeline": [{"date": "2025-07-01", "score": 1}, ...]}
-]
-피로도 추정이 불가능하면 각 팀원별로 'score': 3(중립값)로 채워 반드시 반환하세요. 설명문, 오류만 반환 금지.
----
-{chat_log}
-"""
-
-# ▶ 관계 네트워크 분석 JSON 프롬프트 (꼭 포함!)
-PROMPT_NETWORK_JSON = """
-아래 팀 대화 데이터를 분석하여, 반드시 각 관계를 'support'(지지/긍정) 또는 'conflict'(갈등/부정) 중 하나로 강제 분류해 아래 JSON 형식으로 출력하세요.
-[예시]
-[
-  {"source": "현진", "target": "유미", "strength": 0.8, "type": "conflict"},
-  {"source": "유미", "target": "소피아", "strength": 0.5, "type": "support"}
-]
-type은 반드시 'support' 또는 'conflict'로만 작성(unknown/neutral 불허). 각 링크에 간단 근거(1줄) 포함.
----
 {chat_log}
 """
 
