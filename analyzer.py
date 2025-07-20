@@ -127,4 +127,5 @@ def generate_report(raw_chat_content: str, participants: list, lang: str = 'ko')
     """
     # Convert list to a comma-separated string for the prompt
     participants_str = ", ".join(participants)
+    # The current prompt is language-agnostic enough for Korean, but this structure allows for future EN prompts.
     return call_gemini_api(PROMPT_COMPREHENSIVE_REPORT, is_json_output=False, chat_log=raw_chat_content, participants_list=participants_str)
