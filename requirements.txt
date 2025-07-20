@@ -1,6 +1,7 @@
 streamlit
 openai
 pandas
-networkx
 matplotlib
+networkx
 tiktoken
+hangul-romanize
