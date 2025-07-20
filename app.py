@@ -171,35 +171,4 @@ if st.session_state.get('fatigue_data'):
                 st.caption(NOTICE)
         except Exception as e:
             st.error(f"{TEXTS['no_fatigue_data'][lang]}: {e}")
-    elif fatigue_data and "raw_response" in fatigue_data:
-        st.warning(TEXTS["raw_llm"][lang] + ":")
-        st.code(fatigue_data["raw_response"])
-        st.info(TEXTS["no_fatigue_data"][lang])
-    else:
-        st.info(TEXTS["no_fatigue_data"][lang])
-
-if st.session_state.get('network_data'):
-    st.subheader(TEXTS["network_title"][lang])
-    network_data = st.session_state.get('network_data')
-    if network_data and isinstance(network_data, list):
-        try:
-            import networkx as nx
-            import matplotlib.pyplot as plt
-            G = nx.Graph()
-            for link in network_data:
-                source = to_eng_name(link["source"])
-                target = to_eng_name(link["target"])
-                G.add_edge(source, target, weight=link.get("strength", 1), type=link.get("type", ""))
-            fig, ax = plt.subplots()
-            pos = nx.spring_layout(G)
-            nx.draw(G, pos, with_labels=True, ax=ax, node_color='lightblue', edge_color='gray')
-            st.pyplot(fig)
-            st.caption(NOTICE)
-        except Exception as e:
-            st.error(f"{TEXTS['no_network_data'][lang]}: {e}")
-    elif network_data and "raw_response" in network_data:
-        st.warning(TEXTS["raw_llm"][lang] + ":")
-        st.code(network_data["raw_response"])
-        st.info(TEXTS["no_network_data"][lang])
-    else:
-        st.info(TEXTS["no_network_data"][lang])
+    elif fatigue_data and "raw_response"
