@@ -4,6 +4,7 @@
 import openai
 import json
 import streamlit as st
+import re
 
 # API 클라이언트는 앱 시작 시 한 번만 초기화합니다.
 # Streamlit Secrets에서 API 키를 안전하게 불러옵니다.
