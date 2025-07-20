@@ -1,25 +1,11 @@
 import openai
 import json
-import os
 import streamlit as st
 
-# 1. OpenAI API키 설정
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# 1. OpenAI 최신 방식: 인스턴스 생성 (api_key는 streamlit secrets.toml에 저장)
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 2. LLM 호출 함수 (ChatCompletion)
-def call_openai_api(prompt: str, model="gpt-3.5-turbo", max_tokens=2048) -> str:
-    try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.2,
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return json.dumps({"error": f"API 오류: {e}"})
-
-# 3. 프롬프트 (기존 구조 그대로 사용)
+# 2. 프롬프트 (필요시 언어별 분기 가능)
 PROMPT_FATIGUE_JSON = """
 아래 팀 대화 데이터를 분석하여, 각 팀원별 날짜별 피로도(1~5, 날짜별 시계열)를 아래 JSON 형식으로 출력하세요.
 [예시]
@@ -109,7 +95,20 @@ Chat log:
 {chat_log}
 """
 
-# 4. 분석 함수들
+# 3. LLM 호출 함수 (최신 방식)
+def call_openai_api(prompt: str, model="gpt-3.5-turbo", max_tokens=2048) -> str:
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.2,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return json.dumps({"error": f"API 오류: {e}"})
+
+# 4. 피로도 곡선 분석
 def analyze_fatigue_json(chat_log: str, lang: str = 'ko'):
     prompt = PROMPT_FATIGUE_JSON.format(chat_log=chat_log)
     result = call_openai_api(prompt)
@@ -118,6 +117,7 @@ def analyze_fatigue_json(chat_log: str, lang: str = 'ko'):
     except Exception:
         return {"error": "json.loads 실패", "raw_response": result}
 
+# 5. 관계 네트워크 분석
 def analyze_network_json(chat_log: str, lang: str = 'ko'):
     prompt = PROMPT_NETWORK_JSON.format(chat_log=chat_log)
     result = call_openai_api(prompt)
@@ -126,6 +126,7 @@ def analyze_network_json(chat_log: str, lang: str = 'ko'):
     except Exception:
         return {"error": "json.loads 실패", "raw_response": result}
 
+# 6. 종합 보고서 생성 (마크다운)
 def generate_report(raw_chat_content: str, lang: str = 'ko') -> str:
     if lang == 'ko':
         prompt = PROMPT_COMPREHENSIVE_REPORT_KO
