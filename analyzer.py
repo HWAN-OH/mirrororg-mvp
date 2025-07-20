@@ -1,34 +1,26 @@
 # analyzer.py
-# 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 하나의 완성된 '종합 분석 보고서'를 생성합니다.
-# 최종 버전: '데이터 생성'에서 '보고서 작성'으로 패러다임을 전환하여 안정성과 결과물의 가치를 극대화합니다.
+# 역할: 파싱된 데이터를 받아 LLM API와 통신하고, 사용자가 선택한 언어로 '종합 분석 보고서'를 생성합니다.
+# 최종 버전: 다국어 프롬프트를 탑재하여 완전한 현지화(Localization)를 구현합니다.
 
 import google.generativeai as genai
 import pandas as pd
 
-# --- [Lumina & Delta] The Ultimate Report Generation Prompt ---
+# --- [Lumina & Delta] Bilingual Prompt Engineering ---
 
-PROMPT_COMPREHENSIVE_REPORT = """
+# --- 1. Korean Prompt ---
+PROMPT_KO = """
 ### 페르소나 및 미션 (Persona & Mission)
 당신은 '미러오알지(MirrorOrg)' 프레임워크를 실행하는 최고 수준의 AI 조직 분석가입니다.
-당신의 유일한 임무는 주어진 팀의 채팅 기록을 분석하여, 팀의 붕괴를 막고 성장을 돕기 위한 **'종합 분석 보고서'**를 작성하는 것입니다.
+당신의 유일한 임무는 주어진 팀의 채팅 기록을 분석하여, 팀의 붕괴를 막고 성장을 돕기 위한 **'종합 분석 보고서'**를 한국어로 작성하는 것입니다.
 보고서는 반드시 '미러오알지'의 핵심 방법론과 '프로젝트 에코' 분석 사례를 참고하여, 아래 지정된 Markdown 형식에 따라 작성해야 합니다.
 
 ### 프레임워크 핵심 지식: 미러오알지(MirrorOrg) 방법론
-
-**1. 정의 (Definition):**
-'미러오알지(MirrorOrg)'는 인간 조직을 '복잡계'로 보고, 정성적인 대화를 정량적인 데이터와 통찰력으로 변환하여 시스템의 숨겨진 역학을 진단하고 예측하는 프레임워크입니다.
-
-**2. 프로세스 (Process): 진단 → 예측**
-* **진단 (Diagnosis):** 팀의 현재 상태를 데이터로 객관화합니다. (예: 팀 프로필 분석)
-* **예측 (Prediction):** 진단된 데이터를 기반으로 미래의 리스크를 예측합니다. (예: 피로도 변화, 관계 네트워크 분석)
-
-**3. 사고 과정 (Chain of Thought):**
-* **1단계 (패턴 인식):** 채팅 기록에서 '프로젝트 에코' 사례와 유사한 패턴을 찾습니다. (예: 특정인의 전략적 발언, 다른 이의 감정적 호소, 의견 충돌 등)
-* **2단계 (지식 연결):** 인식된 패턴을 '미러오알지'의 개념(정체성 계수, 정서적 부채, 구조적 긴장 등)과 연결하여 해석합니다.
-* **3단계 (보고서 작성):** 해석된 내용을 바탕으로, 아래의 보고서 형식에 맞춰 각 섹션을 채워나갑니다.
+* **정의:** 조직을 '복잡계'로 보고, 정성적 대화를 정량적 데이터와 통찰력으로 변환하여 시스템의 숨겨진 역학을 진단하고 예측하는 프레임워크.
+* **프로세스:** 진단 (팀 프로필 분석) → 예측 (피로도 변화, 관계 네트워크 분석)
+* **사고 과정:** 채팅 기록에서 '프로젝트 에코' 사례와 유사한 패턴(예: 전략적 발언, 감정적 호소)을 찾아, 이를 '미러오알지'의 개념(정체성 계수, 정서적 부채)과 연결하여 해석하고 보고서를 작성합니다.
 
 ---
-### 최종 보고서 출력 형식 (Markdown)
+### 최종 보고서 출력 형식 (Markdown, 한국어)
 
 # MirrorOrg 종합 분석 보고서
 
@@ -47,26 +39,20 @@ PROMPT_COMPREHENSIVE_REPORT = """
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | (예: Julian) | ⚖️ 5 | 🧠 9 | ✏️ 6 | ⭐ 9 | 🎯 7 | The Driver (전략 중심) |
 | (참여자 A) | (점수) | (점수) | (점수) | (점수) | (점수) | (역할) |
-| (참여자 B) | (점수) | (점수) | (점수) | (점수) | (점수) | (역할) |
 
 **분석 근거:**
 * **[참여자 A 이름]:** (해당 참여자의 계수가 왜 그렇게 판단되었는지, 채팅 내용의 구체적인 예시를 들어 1~2 문장으로 서술)
-* **[참여자 B 이름]:** (분석 근거 서술)
 
 ---
 
 ## 3. Phase 2: 예측 (Prediction)
 ### 3.1. 피로도 변화 (Fatigue Trajectory)
-시간에 따른 팀원들의 감정적, 업무적 소진 상태의 변화를 예측합니다.
-
-* **주요 관찰 사항:** (예: 프로젝트 마감일이 임박한 X월 말, 특정 팀원(들)의 피로도가 급증하는 패턴이 관찰되었습니다. 이는 '정서적 부채'가 누적되고 있음을 시사합니다.)
-* **리스크 분석:** (예: 이러한 피로도 증가는 팀의 번아웃 리스크를 높이며, 특히 감정 계수가 높은 팀원에게 부담이 집중될 수 있습니다.)
+* **주요 관찰 사항:** (예: X월 말, 특정 팀원의 피로도가 급증하는 패턴이 관찰되었습니다. 이는 '정서적 부채' 누적을 시사합니다.)
+* **리스크 분석:** (예: 이러한 피로도 증가는 팀의 번아웃 리스크를 높입니다.)
 
 ### 3.2. 관계 네트워크 (Relationship Network)
-팀원 간 상호작용의 질을 분석하여 잠재적 갈등 및 협력 관계를 예측합니다.
-
-* **주요 관찰 사항:** (예: 리더인 A의 결과 중심적 소통과, 팀원 B의 상태 표현 중심적 소통 사이에 반복적인 의견 충돌이 관찰되었습니다.)
-* **리스크 분석:** (예: 이는 개인의 문제가 아닌, 역할과 소통 방식의 차이에서 오는 '구조적 긴장'입니다. 이 긴장을 중재할 메커니즘이 없다면, 잠재적 갈등으로 발전할 수 있습니다.)
+* **주요 관찰 사항:** (예: 리더 A와 팀원 B 사이에 반복적인 의견 충돌이 관찰되었습니다.)
+* **리스크 분석:** (예: 이는 개인의 문제가 아닌, '구조적 긴장'이며 중재 메커니즘 부재 시 갈등으로 발전할 수 있습니다.)
 
 ---
 
@@ -77,7 +63,66 @@ PROMPT_COMPREHENSIVE_REPORT = """
 ### [분석 대상 채팅 기록]
 {chat_log}
 ---
-### [종합 분석 보고서 (Markdown 형식)]
+### [종합 분석 보고서 (Markdown, 한국어)]
+"""
+
+# --- 2. English Prompt ---
+PROMPT_EN = """
+### Persona & Mission
+You are a world-class AI organizational analyst executing the 'MirrorOrg' framework.
+Your sole mission is to analyze the provided team chat log and write a **'Comprehensive Analysis Report'** in English to prevent team collapse and foster growth.
+The report must adhere to the specified Markdown format, referencing the core methodology of 'MirrorOrg' and the 'Project Echo' case study.
+
+### Core Knowledge: The MirrorOrg Methodology
+* **Definition:** A framework that treats human organizations as 'Complex Systems,' diagnosing and predicting hidden dynamics by modeling qualitative conversations into quantitative data and insights.
+* **Process:** Diagnosis (e.g., Team Profile Analysis) → Prediction (e.g., Fatigue Trajectory, Relationship Network Analysis).
+* **Chain of Thought:** You must first identify patterns in the chat log similar to the 'Project Echo' case (e.g., strategic directives, emotional appeals). Then, connect these patterns to MirrorOrg concepts (e.g., Identity Coefficients, Emotional Debt). Finally, write the report based on this interpretation.
+
+---
+### Final Report Output Format (Markdown, English)
+
+# MirrorOrg Comprehensive Analysis Report
+
+## 1. Analysis Overview
+* **Analysis Period:** [Start date of chat log] - [End date of chat log]
+* **Participants:** [List of key participants]
+* **Executive Summary:** (A 2-3 sentence summary of the key findings.)
+
+---
+
+## 2. Phase 1: Diagnosis
+### 2.1. Identity Coefficient Map
+Diagnoses the overall team composition by identifying member traits and roles.
+
+| Name (Alias) | Emotion | Cognition | Expression | Value | Bias | Core Role |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| (e.g., Julian) | ⚖️ 5 | 🧠 9 | ✏️ 6 | ⭐ 9 | 🎯 7 | The Driver (Strategy-focused) |
+| (Participant A) | (Score) | (Score) | (Score) | (Score) | (Score) | (Role) |
+
+**Analysis Rationale:**
+* **[Participant A's Name]:** (Describe in 1-2 sentences why the coefficients were scored that way, using specific examples from the chat log.)
+
+---
+
+## 3. Phase 2: Prediction
+### 3.1. Fatigue Trajectory
+* **Key Observation:** (e.g., A pattern of spiking fatigue was observed for certain members in late [Month], suggesting an accumulation of 'Emotional Debt'.)
+* **Risk Analysis:** (e.g., This trend increases the team's risk of burnout, with the burden concentrating on members with high Emotion coefficients.)
+
+### 3.2. Relationship Network
+* **Key Observation:** (e.g., Recurring disagreements were observed between the leader A's result-oriented communication and member B's state-expressive communication.)
+* **Risk Analysis:** (e.g., This represents a 'structural tension' rather than a personal issue. Without a mediation mechanism, it could escalate into conflict.)
+
+---
+
+## 4. Conclusion & Recommendations
+(Summarize the team's greatest systemic strengths and risks in 2-3 sentences and add brief recommendations for improvement.)
+
+---
+### [Chat Log for Analysis]
+{chat_log}
+---
+### [Comprehensive Analysis Report (Markdown, English)]
 """
 
 def call_gemini_api(prompt: str, chat_log: str) -> str | None:
@@ -92,16 +137,19 @@ def call_gemini_api(prompt: str, chat_log: str) -> str | None:
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
 
         if not response.parts:
-            return "## 분석 실패\n\nAPI가 응답 생성을 거부했습니다. 입력 데이터에 민감한 내용이 포함되었을 수 있습니다."
+            return "## Analysis Failed\n\nThe API refused to generate a response. This may be due to sensitive content in the input data."
 
         return response.text
     except Exception as e:
-        return f"## 분석 실패\n\nAPI 호출 중 예상치 못한 오류가 발생했습니다:\n\n```\n{str(e)}\n```"
+        return f"## Analysis Failed\n\nAn unexpected error occurred during the API call:\n\n```\n{str(e)}\n```"
 
-def generate_report(chat_df: pd.DataFrame) -> str | None:
+def generate_report(chat_df: pd.DataFrame, lang: str = 'ko') -> str | None:
     """
-    Generates a single comprehensive report from the chat data.
+    Generates a single comprehensive report from the chat data in the specified language.
     """
+    # Select the prompt based on the language
+    prompt = PROMPT_KO if lang == 'ko' else PROMPT_EN
+    
     # Include date information in the log for better temporal analysis
     chat_log = "\n".join(chat_df.apply(lambda row: f"{row['date']}: [{row['speaker']}] {row['message']}", axis=1))
-    return call_gemini_api(PROMPT_COMPREHENSIVE_REPORT, chat_log)
+    return call_gemini_api(prompt, chat_log)
