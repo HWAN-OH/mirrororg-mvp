@@ -2,8 +2,6 @@ import openai
 import json
 import streamlit as st
 
-print("== PROMPT_NETWORK_JSON OK, {chat_log} 포함:", '{chat_log}' in PROMPT_NETWORK_JSON)
-
 client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 PROMPT_FATIGUE_JSON = """
@@ -17,6 +15,8 @@ PROMPT_FATIGUE_JSON = """
 ---
 {chat_log}
 """
+
+print("== PROMPT_NETWORK_JSON OK, {chat_log} 포함:", '{chat_log}' in PROMPT_NETWORK_JSON)
 
 PROMPT_NETWORK_JSON = """
 아래 팀 대화 데이터를 분석하여, 반드시 각 관계를 'support'(지지/긍정) 또는 'conflict'(갈등/부정) 중 하나로 강제 분류해 아래 JSON 형식으로 출력하세요.
