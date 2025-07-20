@@ -36,7 +36,31 @@ COPYRIGHT = "© 2025 Sunghwan Oh. All rights reserved. This MirrorOrg MVP is a t
 
 TEXTS = {
     "page_title": {"ko": "MirrorOrg 단계별 MVP", "en": "MirrorOrg Stepwise MVP"},
-    # ... (이전과 동일)
+    "main_title": {"ko": "🪞 MirrorOrg 단계별 팀 분석", "en": "🪞 MirrorOrg Stepwise Team Analysis"},
+    "main_description": {
+        "ko": "① 파일 업로드 → ② 챕터별 분석 실행 → ③ 결과 확인의 순서로 안전하고 직관적인 팀 분석을 제공합니다.",
+        "en": "Upload file → Run each chapter → View result. This safe, clear flow ensures robust team analysis."
+    },
+    "sidebar_header": {"ko": "설정", "en": "Settings"},
+    "language_selector": {"ko": "언어", "en": "Language"},
+    "upload_header": {"ko": "1️⃣ 채팅 기록 업로드", "en": "1️⃣ Upload Chat History"},
+    "upload_info": {
+        "ko": "팀 채팅 기록을 .txt 파일로 업로드하세요. 업로드 전까지 아래 단계는 비활성화됩니다.",
+        "en": "Upload your team chat history as a .txt file. Steps below are disabled until upload."
+    },
+    "file_uploader_label": {"ko": "분석할 .txt 파일을 선택하세요.", "en": "Choose a .txt file to analyze."},
+    "chapter_header": {"ko": "2️⃣ 챕터별 분석 실행", "en": "2️⃣ Run Each Analysis Chapter"},
+    "chapter1_btn": {"ko": "챕터 1: 종합 보고서", "en": "Chapter 1: Comprehensive Report"},
+    "chapter2_btn": {"ko": "챕터 2: 피로도 곡선", "en": "Chapter 2: Fatigue Trajectory"},
+    "chapter3_btn": {"ko": "챕터 3: 관계 네트워크", "en": "Chapter 3: Relationship Network"},
+    "analysis_complete": {"ko": "✅ 분석이 완료되었습니다!", "en": "✅ Analysis complete!"},
+    "results_header": {"ko": "3️⃣ 결과 확인", "en": "3️⃣ View Results"},
+    "fatigue_title": {"ko": "챕터 2 결과: 피로도 곡선", "en": "Chapter 2 Result: Fatigue Trajectory"},
+    "network_title": {"ko": "챕터 3 결과: 관계 네트워크", "en": "Chapter 3 Result: Relationship Network"},
+    "no_fatigue_data": {"ko": "피로도 곡선 데이터를 시각화할 수 없습니다.", "en": "Fatigue trajectory data could not be visualized."},
+    "no_network_data": {"ko": "관계 네트워크 데이터를 시각화할 수 없습니다.", "en": "Network data could not be visualized."},
+    "report_title": {"ko": "챕터 1 결과: 종합 보고서", "en": "Chapter 1 Result: Comprehensive Report"},
+    "raw_llm": {"ko": "LLM 원본 응답(raw)", "en": "LLM Raw Response"},
 }
 
 st.set_page_config(page_title=TEXTS["page_title"]["en"], page_icon="🤖", layout="wide")
