@@ -1,16 +1,29 @@
+<div align="center">
+
 🧠 MirrorOrg MVP
 AI-Powered Organizational Psychology Analyst
+Discover hidden patterns and risks from your team's communication data.
 
-MirrorOrg is an MVP (Minimum Viable Product) that acts as an AI organizational psychologist. It analyzes a team's communication history (e.g., chat logs) to diagnose interaction patterns, systemic risks, and individual communication styles, ultimately generating a comprehensive 1-page diagnostic report.
+</div>
 
-This project demonstrates how a Large Language Model (LLM) can be utilized not just as a data processor, but as a specialized expert persona to provide deep, qualitative insights.
+<br>
+
+<p align="center">
+<img src="https://i.imgur.com/9i8z5hL.png" alt="MirrorOrg Screenshot" width="800"/>
+</p>
+
+MirrorOrg is an MVP (Minimum Viable Product) that acts as an AI organizational psychologist. It analyzes a team's communication history (e.g., from KakaoTalk, Slack) to diagnose interaction patterns, systemic risks, and individual communication styles, ultimately generating a comprehensive "1-Page Diagnostic Report."
+
+This project explores the potential of a Large Language Model (LLM) not just as a data processor, but as a specialized expert persona capable of providing deep, qualitative insights.
+
+<br>
 
 ✨ Key Features
-💬 Chat Log Analysis: Upload raw text files of chat logs (e.g., from KakaoTalk, Slack) to be analyzed.
+💬 Chat Log Analysis: Upload and analyze .txt chat logs from platforms like KakaoTalk or Slack.
 
 🤖 AI Psychologist Persona: The analysis is performed by "Dr. Aiden," an AI persona designed as an expert organizational psychologist, ensuring consistent and insightful reports.
 
-📄 1-Page Markdown Report: Generates a single, easy-to-read diagnostic report in Markdown format, which includes:
+📄 1-Page Diagnostic Report: Generates a single, easy-to-read Markdown report that includes:
 
 Identity Coefficient Map: Quantifies each member's communication style across 5 dimensions (Emotion, Cognition, Expression, Value, Bias) and defines their core role.
 
@@ -18,42 +31,67 @@ Systemic Risk Assessment: Identifies structural risks like communication bottlen
 
 Actionable Recommendations: Provides concrete suggestions to improve team resilience and effectiveness.
 
-🌐 Bilingual Support: The entire user interface and the final analysis report can be toggled between Korean and English.
+🌐 Bilingual Support: The entire user interface and the final analysis report can be toggled between English and Korean.
+
+<br>
 
 🚀 How to Use
-Select Language: Choose your preferred language (Korean/English) in the sidebar.
+Select Language: Choose your preferred language (English/Korean) in the sidebar.
 
-Upload File: Upload a .txt chat log file.
+Upload File: Upload your .txt chat log file.
 
 Generate Report: Click the "Generate Analysis Report" button.
 
-Get Insights: Review the AI-generated 1-page report directly in the app.
+Get Insights: Review the AI-generated diagnostic report directly in the app.
 
-🛠️ Tech Stack & Architecture
+<br>
+
+🛠️ Tech Stack & Design Philosophy
 Framework: Streamlit
 
 Core Logic: Python
 
 AI & Language Model: OpenAI API (GPT-4o)
 
-Key Design Principle: The application is architected to be simple and robust. Instead of forcing the LLM to generate structured data like JSON (which can be unstable), we prompt it to act as an expert and write a complete, formatted report—a task it excels at. This minimizes complex parsing and error handling, making the system more reliable.
+Core Design Principle: Instead of forcing the LLM to generate potentially unstable JSON data, we leverage its strength in writing expert reports. This approach minimizes complex error handling, enhances system reliability, and maximizes the readability of the final output.
+
+<br>
 
 👤 Creator
 This project was envisioned and developed by Sunghwan Oh.
 
-Current: Managing Director, HD Hydrogen
 
-Past: Former Strategy Lead, Hydrogen at SK Group
 
-Vision: Vision Architect behind MirrorMind AI Ecosystem
 
-LinkedIn Profile: View Profile <!-- 링크를 실제 프로필 주소로 수정하세요 -->
 
-📬 Contact
+Current
+
+Managing Director, HD Hydrogen
+
+Past
+
+Strategy Lead, Hydrogen at SK Group
+
+Vision
+
+Vision Architect behind the MirrorMind AI Ecosystem
+
+LinkedIn
+
+View Profile
+
+GitHub
+
+@HWAN-OH
+
+Email
+
+hawn21@gmail.com
+
 Feel free to reach out for collaboration, academic inquiries, or feedback.
 
-Email: hawn21@gmail.com
-
-GitHub: @HWAN-OH
+<div align="center">
 
 © 2025 Sunghwan Oh. All Rights Reserved.
+
+</div>
