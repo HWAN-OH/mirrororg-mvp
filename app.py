@@ -106,14 +106,16 @@ with st.sidebar:
     © 2025 Sunghwan Oh. All rights reserved.
     """)
 
-uploaded_file = st.file_uploader("분석할 .txt 파일을 업로드하세요", type="txt")
+lang = st.radio("언어 선택 / Language", options=["한국어", "English"], index=0)
+
+uploaded_file = st.file_uploader("분석할 .txt 파일을 업로드하세요 / Upload .txt file for analysis", type="txt")
 if not uploaded_file:
     st.stop()
 
 file_content = uploaded_file.getvalue().decode("utf-8")
-st.success(f"'{uploaded_file.name}' 파일 업로드 완료")
+st.success(f"'{uploaded_file.name}' 파일 업로드 완료 / File uploaded")
 
-def get_short_content(content, max_lines=400, max_chars=10000):
+def get_short_content(content, max_lines=800, max_chars=16000):
     lines = content.splitlines()
     short = "\n".join(lines[-max_lines:])
     return short[-max_chars:] if len(short) > max_chars else short
@@ -153,8 +155,8 @@ def render_summary(data):
     st.subheader("📌 결론")
     st.markdown(data["conclusion"])
 
-if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
-    with st.spinner("분석 중..."):
+if st.button("진단 실행 / Run Diagnosis", use_container_width=True):
+    with st.spinner("분석 중 / Analyzing..."):
         short_content = get_short_content(file_content)
         result = analyze_network_json(short_content)
 
@@ -164,4 +166,4 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
         render_summary(result["data"])
     elif "error" in result:
         st.error("❌ 분석 실패: JSON 파싱 실패 또는 응답 오류")
-        st.text(result.get("raw_response", "응답 없음"))
+        st.text(result.get("raw_response", "응답 없음 / No response"))
