@@ -12,12 +12,23 @@ except Exception as e:
     st.error(f"OpenAI API 키 설정 오류: {e}")
     client = None
 
+# ✅ 미러마인드 프레임 기반 프롬프트 헤더
+MIRRORMIND_HEADER = """
+당신은 'MirrorMind AI 진단 프레임워크'에 최적화된 분석가입니다. 인간 간의 상호작용을 다음의 5가지 파라미터 기반으로 분석하십시오:
+
+- 감정 (emotion): 감정 표현 및 정서적 반응성
+- 사고 (cognition): 논리적 사고 및 문제 해결 능력
+- 표현 (expression): 커뮤니케이션의 명료성 및 영향력
+- 가치 (value): 내재된 신념과 동기 부여
+- 편향 (bias): 인식 왜곡, 선호 경향성
+
+이 기준을 활용하여 인물 간의 역학, 위험, 역할을 평가하세요.
+"""
+
 # ✅ MirrorMind 방식 프롬프트 (중괄호 이스케이프 처리)
-PROMPT_NETWORK_JSON = '''
-# MirrorMind 분석 프로토콜
+PROMPT_NETWORK_JSON = MIRRORMIND_HEADER + '''
 
-당신은 고급 사회심리 모델 기반의 AI 분석가이며, 다음 대화 텍스트를 읽고 각 인물의 성향 계수를 추정하고, 다음 분석을 수행하십시오:
-
+아래 대화를 읽고 다음을 분석하십시오:
 1. 인물별 정체성 계수 (emotion, cognition, expression, value, bias)
 2. 인물별 조직 내 핵심 역할 요약
 3. 인물 간 갈등 구조 및 리스크 평가
@@ -27,25 +38,22 @@ PROMPT_NETWORK_JSON = '''
     4.2 커뮤니케이션 프로토콜 개선
 6. 결론 (현재 상태에 대한 종합 판단 및 향후 경과 예측)
 
-출력은 아래 형식으로 구성하십시오:
+출력은 아래 JSON 형식으로 구성하십시오:
 ```json
 {{
   "identities": [
     {{"name": "오승환", "emotion": 0.6, "cognition": 0.7, "expression": 0.5, "value": 0.9, "bias": 0.4,
-     "role": "핵심 의사결정자 및 전략가"}},
-    {{"name": "설원준", "emotion": 0.3, "cognition": 0.8, "expression": 0.4, "value": 0.7, "bias": 0.2,
-     "role": "지지자 및 완충자"}}
+     "role": "핵심 의사결정자 및 전략가"}}
   ],
-  "conflict_analysis": "갈등은 낮은 수준이나, 표현 방식 차이로 인한 잠재 긴장이 존재.",
+  "conflict_analysis": "표현방식의 차이에 기인한 잠재 갈등이 존재.",
   "risk_summary": [
-    {{"risk_factor": "표현의 불일치", "severity": "중간"}},
-    {{"risk_factor": "편향 축적", "severity": "낮음"}}
+    {{"risk_factor": "표현 불일치", "severity": "중간"}}
   ],
   "prescriptions": {{
-    "role_realignment": "설원준에게 의사결정 보조 기능 부여, 홍준에게 중재자 역할 확대.",
-    "protocol_update": "핵심 회의 시 감정 표현 단계 삽입 및 요약 반복 요청 프로토콜 적용."
+    "role_realignment": "조율자 역할 확대 필요.",
+    "protocol_update": "감정 공유를 포함한 프로토콜 개선 필요."
   }},
-  "conclusion": "현재 구조는 안정적이나, 고도화된 상호작용을 위해 프로토콜 개선이 필요함."
+  "conclusion": "구조는 안정적이나, 소통 방식 개선이 장기적 리스크 완화에 기여할 수 있음."
 }}
 ```
 
@@ -115,15 +123,22 @@ if not uploaded_file:
 file_content = uploaded_file.getvalue().decode("utf-8")
 st.success(f"'{uploaded_file.name}' 파일 업로드 완료 / File uploaded")
 
-def get_short_content(content, max_lines=800, max_chars=16000):
+def get_short_content(content, max_lines=1000, max_chars=16000):
     lines = content.splitlines()
     short = "\n".join(lines[-max_lines:])
     return short[-max_chars:] if len(short) > max_chars else short
 
 def render_identity_table(data):
+    if not isinstance(data, list):
+        st.warning("데이터 형식 오류: 'identities' 항목이 리스트가 아님")
+        return
     df = pd.DataFrame(data)
+    if "name" not in df.columns:
+        st.warning("데이터 오류: 'name' 필드 없음")
+        return
+
     df.index = df["name"]
-    df = df.drop(columns=["name"])
+    df = df.drop(columns=["name"], errors="ignore")
 
     df = df.rename(columns={
         "emotion": "감정",
@@ -134,7 +149,7 @@ def render_identity_table(data):
         "role": "핵심 역할"
     })
 
-    numeric_cols = ["감정", "사고", "표현", "가치", "편향"]
+    numeric_cols = [col for col in ["감정", "사고", "표현", "가치", "편향"] if col in df.columns]
     st.subheader("📊 인물별 정체성 계수표 및 역할")
     st.dataframe(df.style.format({col: "{:.1f}" for col in numeric_cols}))
 
@@ -146,24 +161,27 @@ def render_risk_table(risks):
 
 def render_summary(data):
     st.subheader("🔍 갈등 분석")
-    st.markdown(f"- {data['conflict_analysis']}")
+    st.markdown(f"- {data.get('conflict_analysis', '분석 없음')}")
 
     st.subheader("🧪 회복탄력성 제언")
-    st.markdown(f"**4.1 역할 재배치 시뮬레이션:** {data['prescriptions']['role_realignment']}")
-    st.markdown(f"**4.2 프로토콜 개선:** {data['prescriptions']['protocol_update']}")
+    st.markdown(f"**4.1 역할 재배치 시뮬레이션:** {data.get('prescriptions', {}).get('role_realignment', '')}")
+    st.markdown(f"**4.2 프로토콜 개선:** {data.get('prescriptions', {}).get('protocol_update', '')}")
 
     st.subheader("📌 결론")
-    st.markdown(data["conclusion"])
+    st.markdown(data.get("conclusion", "결론 없음"))
 
 if st.button("진단 실행 / Run Diagnosis", use_container_width=True):
     with st.spinner("분석 중 / Analyzing..."):
         short_content = get_short_content(file_content)
         result = analyze_network_json(short_content)
 
-    if "data" in result:
-        render_identity_table(result["data"]["identities"])
-        render_risk_table(result["data"]["risk_summary"])
-        render_summary(result["data"])
+    if "data" in result and isinstance(result["data"], dict):
+        data = result["data"]
+        if "identities" in data:
+            render_identity_table(data["identities"])
+        if "risk_summary" in data:
+            render_risk_table(data["risk_summary"])
+        render_summary(data)
     elif "error" in result:
         st.error("❌ 분석 실패: JSON 파싱 실패 또는 응답 오류")
         st.text(result.get("raw_response", "응답 없음 / No response"))
