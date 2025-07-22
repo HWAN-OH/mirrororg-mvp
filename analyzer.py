@@ -76,6 +76,12 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
         short_content = get_short_content(file_content)
         result = analyzer.analyze_network_json(short_content)
 
+    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
+    st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
+    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
+
     if "data" in result:
         if not isinstance(result["data"], list):
             st.error("❌ 결과 데이터 형식 오류: 예상한 리스트가 아님 / Invalid format")
@@ -83,9 +89,3 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
             st.markdown(generate_text_summary(result["data"]))
     elif "error" in result:
         st.error("❌ 진단 실패 / Diagnosis Failed: JSON 분석 실패")
-
-    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
-    st.code(result.get("raw_response", "응답 없음 / No response"))
-
-    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
-    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
