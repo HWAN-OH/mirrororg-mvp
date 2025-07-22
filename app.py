@@ -11,7 +11,7 @@ except Exception as e:
     st.error(f"OpenAI API 키 설정 오류: {e}")
     client = None
 
-# ✅ MirrorMind 방식 프롬프트
+# ✅ MirrorMind 방식 프롬프트 (모든 중괄호 이스케이프 처리)
 PROMPT_NETWORK_JSON = '''
 # MirrorMind 분석 프로토콜
 
@@ -20,15 +20,15 @@ PROMPT_NETWORK_JSON = '''
 ## 분석 규칙
 - 각 관계는 다음 4개 필드를 포함해야 합니다:
 ```json
-{ "source": "말한 사람", "target": "상대방", "strength": 0.1~1.0, "type": "support" 또는 "conflict" }
+{{{{ "source": "말한 사람", "target": "상대방", "strength": 0.1~1.0, "type": "support" 또는 "conflict" }}}}
 ```
 - 출력은 반드시 JSON 형식이어야 하며, 불필요한 설명을 포함하지 마십시오.
 
 ## 출력 예시
 ```json
 [
-  { "source": "현진", "target": "유미", "strength": 0.8, "type": "conflict" },
-  { "source": "에리카", "target": "현진", "strength": 0.6, "type": "support" }
+  {{{{ "source": "현진", "target": "유미", "strength": 0.8, "type": "conflict" }}}},
+  {{{{ "source": "에리카", "target": "현진", "strength": 0.6, "type": "support" }}}}
 ]
 ```
 
@@ -164,4 +164,3 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
             st.markdown(generate_text_summary(result["data"]))
     elif "error" in result:
         st.error("❌ 진단 실패 / Diagnosis Failed: JSON 분석 실패")
-
