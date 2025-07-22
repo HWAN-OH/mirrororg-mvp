@@ -1,4 +1,4 @@
-div align="center">
+<div align="center">
 <h1>🧠 MirrorOrg MVP</h1>
 <h3>AI-Powered Organizational Psychology Analyst</h3>
 <p><strong>Discover hidden patterns and risks from your team's communication data.</strong></p>
