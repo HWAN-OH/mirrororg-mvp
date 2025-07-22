@@ -1,6 +1,81 @@
 import streamlit as st
-import analyzer
+import openai
+import json
+import re
 from collections import Counter
+
+# ✅ OpenAI 클라이언트 초기화
+try:
+    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception as e:
+    st.error(f"OpenAI API 키 설정 오류: {e}")
+    client = None
+
+# ✅ MirrorMind 방식 프롬프트
+PROMPT_NETWORK_JSON = '''
+# MirrorMind 분석 프로토콜
+
+당신은 고급 사회심리 모델 기반의 AI 분석가이며, 다음 대화 텍스트를 읽고 인물 간의 **지지(support)** 또는 **갈등(conflict)** 관계를 추론합니다. 이 관계는 단순한 언급이 아니라 **의도, 감정, 문맥, 반응의 스타일**을 종합적으로 분석하여 결정되어야 합니다.
+
+## 분석 규칙
+- 각 관계는 다음 4개 필드를 포함해야 합니다:
+```json
+{ "source": "말한 사람", "target": "상대방", "strength": 0.1~1.0, "type": "support" 또는 "conflict" }
+```
+- 출력은 반드시 JSON 형식이어야 하며, 불필요한 설명을 포함하지 마십시오.
+
+## 출력 예시
+```json
+[
+  { "source": "현진", "target": "유미", "strength": 0.8, "type": "conflict" },
+  { "source": "에리카", "target": "현진", "strength": 0.6, "type": "support" }
+]
+```
+
+## 분석 대상 대화
+{chat_log}
+'''
+
+def call_openai_api(prompt: str, model="gpt-3.5-turbo", max_tokens=2048) -> str:
+    if not client:
+        return json.dumps({"error": "OpenAI client is not initialized."})
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.2,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return json.dumps({"error": f"API call failed: {e}"})
+
+def analyze_network_json(chat_log: str, lang: str = 'ko'):
+    prompt = PROMPT_NETWORK_JSON.format(chat_log=chat_log)
+    result_text = call_openai_api(prompt)
+
+    try:
+        match = re.search(r"```json\s*([\s\S]*?)\s*```", result_text)
+        if match:
+            json_text = match.group(1)
+        else:
+            json_text = result_text
+        parsed = json.loads(json_text)
+        return {
+            "data": parsed,
+            "raw_response": result_text,
+            "prompt": prompt
+        }
+    except (json.JSONDecodeError, TypeError) as e:
+        return {
+            "error": f"Failed to decode JSON from LLM response: {e}",
+            "raw_response": result_text,
+            "prompt": prompt
+        }
+
+# ------------------------------
+# STREAMLIT UI STARTS HERE
+# ------------------------------
 
 st.set_page_config(page_title="MirrorOrg 조직 진단 요약 / Organizational Summary", layout="wide")
 st.title("🪞 MirrorOrg 조직 진단 요약 / Organizational Summary")
@@ -10,7 +85,7 @@ with st.sidebar:
     st.markdown("""
     이 도구는 MirrorMind 방식에 따라 구성원 간의 상호작용을 분석하여 **성향의 차이**를 시각화합니다.  
     **이 분석은 우열 평가나 인사 목적이 아니며**, 심층적 이해와 조직 내 커뮤니케이션 개선을 위한 것입니다.
-
+    
     ---
     This tool visualizes interpersonal dynamics using the MirrorMind methodology, highlighting **differences in tendencies**,  
     **not for evaluation or HR purposes**, but to enhance understanding and communication within the organization.
@@ -23,7 +98,7 @@ with st.sidebar:
     """)
 
     st.markdown("## 🌐 언어 전환 / Language")
-    lang = st.radio("Select Language", options=["한국어", "English"], index=0)
+    lang = st.radio("Select Language", options=["한국어", "English"], index=0, key="language_radio")
 
 uploaded_file = st.file_uploader("분석할 .txt 파일을 업로드하세요 (Upload a .txt file for analysis)", type="txt")
 if not uploaded_file:
@@ -74,7 +149,13 @@ def generate_text_summary(network_data):
 if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
     with st.spinner("분석 중... / Analyzing..."):
         short_content = get_short_content(file_content)
-        result = analyzer.analyze_network_json(short_content)
+        result = analyze_network_json(short_content)
+
+    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
+    st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
+    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
 
     if "data" in result:
         if not isinstance(result["data"], list):
@@ -84,8 +165,3 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
     elif "error" in result:
         st.error("❌ 진단 실패 / Diagnosis Failed: JSON 분석 실패")
 
-    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
-    st.code(result.get("raw_response", "응답 없음 / No response"))
-
-    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
-    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
