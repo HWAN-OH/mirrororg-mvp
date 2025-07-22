@@ -39,8 +39,8 @@ def get_short_content(content, max_lines=2000):
 def generate_text_summary(network_data):
     if not isinstance(network_data, list):
         return "⚠️ 오류: 분석 결과가 올바른 JSON 리스트 형식이 아닙니다. / Invalid format returned."
-    supports = [x for x in network_data if x["type"] == "support"]
-    conflicts = [x for x in network_data if x["type"] == "conflict"]
+    supports = [x for x in network_data if x.get("type") == "support"]
+    conflicts = [x for x in network_data if x.get("type") == "conflict"]
     all_names = [x["source"] for x in network_data] + [x["target"] for x in network_data]
     name_counts = Counter(all_names)
     support_to = Counter([x["target"] for x in supports])
@@ -79,11 +79,13 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
     if "data" in result:
         if not isinstance(result["data"], list):
             st.error("❌ 결과 데이터 형식 오류: 예상한 리스트가 아님 / Invalid format")
-            st.subheader("📄 LLM 응답 원문 / Raw LLM Response")
-            st.code(result.get("raw_response", "응답 없음 / No response"))
         else:
             st.markdown(generate_text_summary(result["data"]))
     elif "error" in result:
         st.error("❌ 진단 실패 / Diagnosis Failed: JSON 분석 실패")
-        st.subheader("📄 LLM 응답 원문 / Raw LLM Response")
-        st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
+    st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
+    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
