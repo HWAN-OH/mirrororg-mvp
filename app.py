@@ -122,6 +122,7 @@ def render_identity_table(data):
     df = pd.DataFrame(data)
     df.index = df["name"]
     df = df.drop(columns=["name"])
+
     df = df.rename(columns={
         "emotion": "감정",
         "cognition": "사고",
@@ -130,8 +131,10 @@ def render_identity_table(data):
         "bias": "편향",
         "role": "핵심 역할"
     })
+
+    numeric_cols = ["감정", "사고", "표현", "가치", "편향"]
     st.subheader("📊 인물별 정체성 계수표 및 역할")
-    st.dataframe(df.style.format("{:.1f}"))
+    st.dataframe(df.style.format({col: "{:.1f}" for col in numeric_cols}))
 
 def render_risk_table(risks):
     df = pd.DataFrame(risks)
