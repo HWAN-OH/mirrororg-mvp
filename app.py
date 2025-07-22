@@ -12,7 +12,7 @@ except Exception as e:
     st.error(f"OpenAI API 키 설정 오류: {e}")
     client = None
 
-# ✅ MirrorMind 방식 프롬프트
+# ✅ MirrorMind 방식 프롬프트 (중괄호 이스케이프 처리)
 PROMPT_NETWORK_JSON = '''
 # MirrorMind 분석 프로토콜
 
@@ -29,24 +29,24 @@ PROMPT_NETWORK_JSON = '''
 
 출력은 아래 형식으로 구성하십시오:
 ```json
-{
+{{
   "identities": [
-    {"name": "오승환", "emotion": 0.6, "cognition": 0.7, "expression": 0.5, "value": 0.9, "bias": 0.4,
-     "role": "핵심 의사결정자 및 전략가"},
-    {"name": "설원준", "emotion": 0.3, "cognition": 0.8, "expression": 0.4, "value": 0.7, "bias": 0.2,
-     "role": "지지자 및 완충자"}
+    {{"name": "오승환", "emotion": 0.6, "cognition": 0.7, "expression": 0.5, "value": 0.9, "bias": 0.4,
+     "role": "핵심 의사결정자 및 전략가"}},
+    {{"name": "설원준", "emotion": 0.3, "cognition": 0.8, "expression": 0.4, "value": 0.7, "bias": 0.2,
+     "role": "지지자 및 완충자"}}
   ],
   "conflict_analysis": "갈등은 낮은 수준이나, 표현 방식 차이로 인한 잠재 긴장이 존재.",
   "risk_summary": [
-    {"risk_factor": "표현의 불일치", "severity": "중간"},
-    {"risk_factor": "편향 축적", "severity": "낮음"}
+    {{"risk_factor": "표현의 불일치", "severity": "중간"}},
+    {{"risk_factor": "편향 축적", "severity": "낮음"}}
   ],
-  "prescriptions": {
+  "prescriptions": {{
     "role_realignment": "설원준에게 의사결정 보조 기능 부여, 홍준에게 중재자 역할 확대.",
     "protocol_update": "핵심 회의 시 감정 표현 단계 삽입 및 요약 반복 요청 프로토콜 적용."
-  },
+  }},
   "conclusion": "현재 구조는 안정적이나, 고도화된 상호작용을 위해 프로토콜 개선이 필요함."
-}
+}}
 ```
 
 분석 대상 대화:
