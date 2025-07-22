@@ -107,9 +107,10 @@ if not uploaded_file:
 file_content = uploaded_file.getvalue().decode("utf-8")
 st.success(f"'{uploaded_file.name}' 파일이 성공적으로 업로드되었습니다 / Successfully uploaded")
 
-def get_short_content(content, max_lines=2000):
+def get_short_content(content, max_lines=400, max_chars=10000):
     lines = content.splitlines()
-    return "\n".join(lines[-max_lines:]) if len(lines) > max_lines else content
+    short = "\n".join(lines[-max_lines:])
+    return short[-max_chars:] if len(short) > max_chars else short
 
 def generate_text_summary(network_data):
     if not isinstance(network_data, list):
