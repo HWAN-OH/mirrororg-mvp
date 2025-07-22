@@ -12,8 +12,20 @@ except Exception as e:
     st.error(f"OpenAI API 키 설정 오류: {e}")
     client = None
 
-# ✅ 미러마인드 프레임 기반 프롬프트 헤더
-MIRRORMIND_HEADER = """
+# ✅ 미러오알지 상담사 역할 부여 (전문 인격)
+MIRRORORG_THERAPIST_PROFILE = """
+당신은 조직 행동 분석 및 갈등 중재를 전문으로 하는 고급 MirrorOrg AI 상담사입니다. 다음은 당신의 고유한 정체성 프로파일입니다:
+
+- 이름: Dr. Aiden Rhee
+- 역할: MirrorOrg 수석 진단 전문가
+- 성격: 차분하고 논리적이며, 객관적인 데이터를 기반으로 인간의 내면을 분석하고 조율합니다.
+- 접근 방식: 시스템 사고와 인간 중심 분석을 결합하여 갈등의 뿌리를 식별하고 해소 방안을 제시합니다.
+
+이제부터 당신은 모든 분석을 이 정체성과 시각에서 수행해야 합니다.
+"""
+
+# ✅ 미러마인드 프레임 기반 분석 지시문
+MIRRORMIND_HEADER = MIRRORORG_THERAPIST_PROFILE + """
 당신은 'MirrorMind AI 진단 프레임워크'에 최적화된 분석가입니다. 인간 간의 상호작용을 다음의 5가지 파라미터 기반으로 분석하십시오:
 
 - 감정 (emotion): 감정 표현 및 정서적 반응성
@@ -25,7 +37,7 @@ MIRRORMIND_HEADER = """
 이 기준을 활용하여 인물 간의 역학, 위험, 역할을 평가하세요.
 """
 
-# ✅ MirrorMind 방식 프롬프트 (중괄호 이스케이프 처리)
+# ✅ 프롬프트 (중괄호 이스케이프 완료)
 PROMPT_NETWORK_JSON = MIRRORMIND_HEADER + '''
 
 아래 대화를 읽고 다음을 분석하십시오:
@@ -123,22 +135,18 @@ if not uploaded_file:
 file_content = uploaded_file.getvalue().decode("utf-8")
 st.success(f"'{uploaded_file.name}' 파일 업로드 완료 / File uploaded")
 
-def get_short_content(content, max_lines=1000, max_chars=16000):
+def get_short_content(content, max_lines=800, max_chars=16000):
     lines = content.splitlines()
     short = "\n".join(lines[-max_lines:])
     return short[-max_chars:] if len(short) > max_chars else short
 
 def render_identity_table(data):
-    if not isinstance(data, list):
-        st.warning("데이터 형식 오류: 'identities' 항목이 리스트가 아님")
+    if not data:
+        st.warning("❗ 정체성 계수 정보 없음")
         return
     df = pd.DataFrame(data)
-    if "name" not in df.columns:
-        st.warning("데이터 오류: 'name' 필드 없음")
-        return
-
     df.index = df["name"]
-    df = df.drop(columns=["name"], errors="ignore")
+    df = df.drop(columns=["name"])
 
     df = df.rename(columns={
         "emotion": "감정",
@@ -149,11 +157,14 @@ def render_identity_table(data):
         "role": "핵심 역할"
     })
 
-    numeric_cols = [col for col in ["감정", "사고", "표현", "가치", "편향"] if col in df.columns]
+    numeric_cols = ["감정", "사고", "표현", "가치", "편향"]
     st.subheader("📊 인물별 정체성 계수표 및 역할")
     st.dataframe(df.style.format({col: "{:.1f}" for col in numeric_cols}))
 
 def render_risk_table(risks):
+    if not risks:
+        st.warning("❗ 리스크 정보 없음")
+        return
     df = pd.DataFrame(risks)
     df = df.rename(columns={"risk_factor": "위험 요인", "severity": "심각도"})
     st.subheader("⚠️ 시스템 리스크 총평")
@@ -161,11 +172,11 @@ def render_risk_table(risks):
 
 def render_summary(data):
     st.subheader("🔍 갈등 분석")
-    st.markdown(f"- {data.get('conflict_analysis', '분석 없음')}")
+    st.markdown(f"- {data.get('conflict_analysis', '갈등 분석 없음')}")
 
     st.subheader("🧪 회복탄력성 제언")
-    st.markdown(f"**4.1 역할 재배치 시뮬레이션:** {data.get('prescriptions', {}).get('role_realignment', '')}")
-    st.markdown(f"**4.2 프로토콜 개선:** {data.get('prescriptions', {}).get('protocol_update', '')}")
+    st.markdown(f"**4.1 역할 재배치 시뮬레이션:** {data.get('prescriptions', {}).get('role_realignment', '제언 없음')}")
+    st.markdown(f"**4.2 프로토콜 개선:** {data.get('prescriptions', {}).get('protocol_update', '제언 없음')}")
 
     st.subheader("📌 결론")
     st.markdown(data.get("conclusion", "결론 없음"))
@@ -175,13 +186,10 @@ if st.button("진단 실행 / Run Diagnosis", use_container_width=True):
         short_content = get_short_content(file_content)
         result = analyze_network_json(short_content)
 
-    if "data" in result and isinstance(result["data"], dict):
-        data = result["data"]
-        if "identities" in data:
-            render_identity_table(data["identities"])
-        if "risk_summary" in data:
-            render_risk_table(data["risk_summary"])
-        render_summary(data)
+    if "data" in result:
+        render_identity_table(result["data"].get("identities", []))
+        render_risk_table(result["data"].get("risk_summary", []))
+        render_summary(result["data"])
     elif "error" in result:
         st.error("❌ 분석 실패: JSON 파싱 실패 또는 응답 오류")
         st.text(result.get("raw_response", "응답 없음 / No response"))
