@@ -23,7 +23,7 @@ with st.sidebar:
     """)
 
     st.markdown("## 🌐 언어 전환 / Language")
-    lang = st.radio("Select Language", options=["한국어", "English"], index=0)
+    lang = st.radio("Select Language", options=["한국어", "English"], index=0, key="language_radio")
 
 uploaded_file = st.file_uploader("분석할 .txt 파일을 업로드하세요 (Upload a .txt file for analysis)", type="txt")
 if not uploaded_file:
