@@ -8,10 +8,6 @@ Discover hidden patterns and risks from your team's communication data.
 
 <br>
 
-<p align="center">
-<img src="https://i.imgur.com/9i8z5hL.png" alt="MirrorOrg Screenshot" width="800"/>
-</p>
-
 MirrorOrg is an MVP (Minimum Viable Product) that acts as an AI organizational psychologist. It analyzes a team's communication history (e.g., from KakaoTalk, Slack) to diagnose interaction patterns, systemic risks, and individual communication styles, ultimately generating a comprehensive "1-Page Diagnostic Report."
 
 This project explores the potential of a Large Language Model (LLM) not just as a data processor, but as a specialized expert persona capable of providing deep, qualitative insights.
