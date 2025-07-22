@@ -1,143 +1,64 @@
 import streamlit as st
 import pandas as pd
-import openai
 import re
-import json
+import os
+from analyzer import analyze_chat
 
-# ---------------------------
-# GPT API 설정 (OPENAI)
-# ---------------------------
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+st.set_page_config(page_title="MirrorOrg - 조직 분석 MVP", layout="wide")
 
-# ---------------------------
-# 언어 설정
-# ---------------------------
-lang = st.radio("언어를 선택하세요 / Select Language", ["한국어", "English"])
+st.markdown("## 🧠 MirrorOrg 진단 툴")
 
-# ---------------------------
-# 사이드바 안내
-# ---------------------------
-st.sidebar.title("MirrorOrg Analyzer")
-st.sidebar.markdown("""
-© 2025 MirrorMind Project  
-본 분석은 평가 목적이 아닌, **성향의 차이를 이해하기 위한 참고 자료**입니다.  
-해석에는 주의가 필요하며 실제 상황과는 다를 수 있습니다.
-""")
+lang = st.radio("Select Language / 언어 선택", options=["한국어", "English"], index=0, key="lang")
 
-# ---------------------------
-# 의미 있는 대화 추출 함수
-# ---------------------------
-def extract_meaningful_lines(chat_text, min_length=15):
-    lines = chat_text.split("\n")
-    meaningful = []
-    for line in lines:
-        line = line.strip()
-        if len(line) >= min_length and not re.search(r"^[0-9]{4}.*사진|이모티콘|ㅋㅋ|ㅎㅎ|\b(확인|넵|ㅇㅇ)\b", line):
-            meaningful.append(line)
-    return meaningful[:800]  # token 수 제한 대비 줄 수 제한
-
-# ---------------------------
-# GPT 프롬프트 (조직 진단)
-# ---------------------------
-ORG_DIAG_PROMPT = """
-You are DR. Aiden Rhee, a senior analyst at MirrorOrg.
-
-Analyze the following multi-person chat log and extract key indicators for organizational diagnosis. 
-Use the MirrorMind framework, focusing on:
-1. Individual identity factors (emotion, cognition, expression, value, bias)
-2. Conflict structure between participants
-3. Systemic risk assessment (in table form)
-4. Suggestions for resilience recovery: 4.1 Role realignment / 4.2 Protocol improvement
-5. Conclusion
-
-Response in JSON with keys: identities, conflicts, systemic_risk, suggestions, conclusion
-
-Chat log:
-"""
-
-# ---------------------------
-# GPT 프롬프트 (역할 분석)
-# ---------------------------
-ROLE_ANALYSIS_PROMPT = """
-You are DR. Aiden Rhee, a dialogue analyst.
-
-Analyze the following group chat log and classify each participant into roles such as:
-- Initiator
-- Mediator
-- Supporter
-- Observer
-- Challenger
-
-Explain the reason for each classification.
-
-Return as JSON in the format:
-{
-  "role_analysis": [
-    {"name": "홍길동", "role": "Initiator", "reason": "Suggests direction repeatedly and dominates decisions."},
-    ...
-  ]
-}
-
-Chat log:
-"""
-
-# ---------------------------
-# GPT 호출 함수
-# ---------------------------
-def query_gpt(prompt):
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4
-    )
-    return response.choices[0].message['content']
-
-# ---------------------------
-# 사용자 입력
-# ---------------------------
 uploaded_file = st.file_uploader("📁 분석할 카카오톡 파일을 업로드하세요", type="txt")
+
 if uploaded_file:
     content = uploaded_file.read().decode("utf-8")
-    short_content = "\n".join(extract_meaningful_lines(content))
 
-    with st.spinner("🔍 조직 진단 중..."):
-        try:
-            org_prompt = ORG_DIAG_PROMPT + short_content
-            org_raw = query_gpt(org_prompt)
-            result = json.loads(org_raw)
-            analysis_type = "조직 진단"
-        except Exception:
-            try:
-                role_prompt = ROLE_ANALYSIS_PROMPT + short_content
-                role_raw = query_gpt(role_prompt)
-                result = json.loads(role_raw)
-                analysis_type = "역할 기반 분석"
-            except Exception:
-                result = None
-                analysis_type = None
+    # 대화 전처리: 날짜 패턴 기준으로 최근 2000줄 추출
+    lines = content.split("\n")
+    filtered_lines = [line for line in lines if re.match(r"\d{4}년 \d{1,2}월 \d{1,2}일", line)]
+    short_content = "\n".join(filtered_lines[-2000:]) if len(filtered_lines) > 0 else "\n".join(lines[-2000:])
 
-    if result:
-        st.success(f"✅ 분석 유형: {analysis_type}")
+    result = analyze_chat(short_content)
 
-        if analysis_type == "조직 진단":
-            st.subheader("🧠 정체성 계수표")
-            st.json(result.get("identities", "❗ 정보 없음"))
+    # 에러 처리
+    if "error" in result:
+        st.error("분석 실패: " + result["error"])
 
-            st.subheader("🔍 갈등 구조")
-            st.json(result.get("conflicts", "❗ 갈등 분석 없음"))
+    # 조직 진단 케이스
+    elif "identities" in result:
+        st.success("✅ 조직 진단 결과를 기반으로 분석되었습니다.")
 
-            st.subheader("📉 시스템 리스크")
-            st.json(result.get("systemic_risk", "❗ 리스크 정보 없음"))
+        def render_identity_table(identities):
+            df = pd.DataFrame(identities)
+            df.set_index("name", inplace=True)
+            st.dataframe(df.style.format("{:.1f}"))
 
-            st.subheader("🧪 회복탄력성 제언")
-            st.json(result.get("suggestions", "❗ 제언 없음"))
+        st.markdown("### 🧾 정체성 계수 분석")
+        render_identity_table(result["identities"])
 
-            st.subheader("📌 결론")
-            st.write(result.get("conclusion", "❗ 결론 없음"))
+        st.markdown("### 🔍 갈등 구조 분석")
+        st.json(result.get("conflicts", {}))
 
-        elif analysis_type == "역할 기반 분석":
-            st.subheader("🎭 참여자 역할 분석")
-            st.json(result.get("role_analysis", "❗ 역할 분석 없음"))
+        st.markdown("### 🧪 시스템 리스크 총평")
+        st.json(result.get("systemic_risk", {}))
+
+        st.markdown("### 💡 회복탄력성 제언")
+        st.json(result.get("suggestions", {}))
+
+        st.markdown("### 📌 결론")
+        st.write(result.get("conclusion", "(결론 없음)"))
+
+    # 역할 분석 fallback 케이스
+    elif "role_analysis" in result:
+        st.warning("⚠️ 대화량이 적어 역할 분석으로 대체되었습니다.")
+        st.markdown("### 👥 역할 기반 대화 분석")
+        for item in result["role_analysis"]:
+            st.markdown(f"- **{item['name']}** → *{item['role']}* : {item['reason']}")
 
     else:
         st.error("분석에 실패했습니다. 대화 내용이 충분히 풍부한지 확인해주세요.")
+
+    st.markdown("---")
+    st.markdown("ⓒ 2025 MirrorOrg. 모든 분석은 성향 이해를 위한 참고 용도로 제공되며 평가 목적이 아닙니다.")
