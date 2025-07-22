@@ -1,72 +1,59 @@
+🧠 MirrorOrg MVP
+AI-Powered Organizational Psychology Analyst
 
-# MirrorOrg™ MVP
+MirrorOrg is an MVP (Minimum Viable Product) that acts as an AI organizational psychologist. It analyzes a team's communication history (e.g., chat logs) to diagnose interaction patterns, systemic risks, and individual communication styles, ultimately generating a comprehensive 1-page diagnostic report.
 
-**AI-powered Organizational Diagnostic Tool**  
-Diagnose emotional fatigue, communication patterns, and potential role conflicts in teams using chat history.
+This project demonstrates how a Large Language Model (LLM) can be utilized not just as a data processor, but as a specialized expert persona to provide deep, qualitative insights.
 
----
+✨ Key Features
+💬 Chat Log Analysis: Upload raw text files of chat logs (e.g., from KakaoTalk, Slack) to be analyzed.
 
-## 🧠 What is MirrorOrg?
+🤖 AI Psychologist Persona: The analysis is performed by "Dr. Aiden," an AI persona designed as an expert organizational psychologist, ensuring consistent and insightful reports.
 
-MirrorOrg is an identity-based analytics prototype built on the MirrorMind framework.  
-This MVP allows teams to upload chat logs (e.g., KakaoTalk) and instantly receive visual insights.
+📄 1-Page Markdown Report: Generates a single, easy-to-read diagnostic report in Markdown format, which includes:
 
----
+Identity Coefficient Map: Quantifies each member's communication style across 5 dimensions (Emotion, Cognition, Expression, Value, Bias) and defines their core role.
 
-## 🔍 Features
+Systemic Risk Assessment: Identifies structural risks like communication bottlenecks or emotional burnout.
 
-- 📥 Upload anonymized KakaoTalk chat logs (.txt)
-- 📊 Visualize message volume per person (Expression proxy)
-- 📈 View daily message trends (Fatigue proxy)
-- 📄 Generate downloadable PDF report (auto-summary)
+Actionable Recommendations: Provides concrete suggestions to improve team resilience and effectiveness.
 
----
+🌐 Bilingual Support: The entire user interface and the final analysis report can be toggled between Korean and English.
 
-## 🛠 Tech Stack
+🚀 How to Use
+Select Language: Choose your preferred language (Korean/English) in the sidebar.
 
-- [Streamlit](https://streamlit.io/)
-- Pandas, Plotly
-- PDF Export via `xhtml2pdf`
+Upload File: Upload a .txt chat log file.
 
----
+Generate Report: Click the "Generate Analysis Report" button.
 
-## 🚀 How to Run
+Get Insights: Review the AI-generated 1-page report directly in the app.
 
-```bash
-# Step 1: Clone the repository
-git clone https://github.com/yourusername/mirrororg-mvp.git
-cd mirrororg-mvp
+🛠️ Tech Stack & Architecture
+Framework: Streamlit
 
-# Step 2: Install dependencies
-pip install -r requirements.txt
+Core Logic: Python
 
-# Step 3: Run the app
-streamlit run main.py
-```
+AI & Language Model: OpenAI API (GPT-4o)
 
----
+Key Design Principle: The application is architected to be simple and robust. Instead of forcing the LLM to generate structured data like JSON (which can be unstable), we prompt it to act as an expert and write a complete, formatted report—a task it excels at. This minimizes complex parsing and error handling, making the system more reliable.
 
-## 📎 Sample Input
+👤 Creator
+This project was envisioned and developed by Sunghwan Oh.
 
-Use a `.txt` file exported from KakaoTalk PC version.  
-The file should include the full date + user + message format.
+Current: Managing Director, HD Hydrogen
 
----
+Past: Former Strategy Lead, Hydrogen at SK Group
 
-## 📄 Output Example
+Vision: Vision Architect behind MirrorMind AI Ecosystem
 
-- Basic Stats
-- Message volume per user (bar chart)
-- Message count per day (line chart)
-- PDF Summary Report
+LinkedIn Profile: View Profile <!-- 링크를 실제 프로필 주소로 수정하세요 -->
 
----
+📬 Contact
+Feel free to reach out for collaboration, academic inquiries, or feedback.
 
-## 🌐 License
+Email: hawn21@gmail.com
 
-This MVP is open for experimentation, but core algorithms are protected under the creator’s ownership.  
-For commercial use or collaboration, please contact the author.
+GitHub: @HWAN-OH
 
----
-
-© 2025 MirrorMind by HWAN OH
+© 2025 Sunghwan Oh. All Rights Reserved.
