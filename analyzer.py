@@ -1,74 +1,93 @@
+import streamlit as st
 import openai
-import json
 import re
 
-openai.api_key = "your-api-key"  # Replace with secure loading if needed
+# Streamlit secrets에서 API 키를 안전하게 로드
+try:
+    client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception:
+    client = None
 
-# GPT 프롬프트 선언
-ORG_DIAG_PROMPT = """
-You are DR. Aiden Rhee, a senior analyst at MirrorOrg.
-Analyze the following multi-person chat log and extract key indicators for organizational diagnosis. 
-Use the MirrorMind framework, focusing on:
-1. Individual identity factors (emotion, cognition, expression, value, bias)
-2. Conflict structure between participants
-3. Systemic risk assessment (in table form)
-4. Suggestions for resilience recovery: 4.1 Role realignment / 4.2 Protocol improvement
-5. Conclusion
-Return as JSON with keys: identities, conflicts, systemic_risk, suggestions, conclusion
-Chat log:
+# LLM에게 역할을 부여하고, 분석 틀과 출력 형식을 지시하는 '마스터 프롬프트'
+MASTER_PROMPT = """
+You are Dr. Aiden, a world-class organizational psychologist and expert analyst at MirrorOrg. Your task is to analyze the provided team chat log and generate a concise, insightful "1-Page Summary Report" in MARKDOWN format.
+
+**DO NOT** generate JSON or any other format. The entire output must be a single, readable Markdown document.
+
+Follow this structure precisely, based on the "Project Echo" case study:
+
+---
+
+# **MirrorOrg 1-Page Diagnostic Report**
+
+## **Part 1: Team Identity & Communication Style**
+- Based on the dialogue, briefly summarize the team's overall communication patterns, decision-making style, and emotional tone. (3-4 sentences)
+
+## **Part 2: Systemic Risk Assessment**
+- Identify up to 3 critical systemic risks observed in the conversation. Present them in a Markdown table. Focus on structural issues, not individual faults.
+
+| Risk Type | Description | Severity |
+| :--- | :--- | :--- |
+| (e.g., Emotional Burnout) | (e.g., Specific members show signs of fatigue, and this emotional labor is not being managed.) | (e.g., 🔴 High) |
+| (e.g., Decision Bottleneck) | (e.g., Decisions seem overly reliant on one person, creating delays and single points of failure.) | (e.g., 🟡 Medium) |
+| (e.g., Ambiguous Roles) | (e.g., Unclear responsibilities lead to redundant work or missed tasks.) | (e.g., 🟡 Medium) |
+
+*Severity Guide: 🔴 High, 🟡 Medium, 🟢 Low*
+
+## **Part 3: Key Recommendations**
+- Provide 2-3 concrete, actionable recommendations to improve the team's resilience and communication effectiveness.
+- **Recommendation 1:** (e.g., Introduce a 'silent hour' protocol to reduce communication fatigue.)
+- **Recommendation 2:** (e.g., Clarify roles for the next project phase in a shared document.)
+
+## **Part 4: Overall Conclusion**
+- Provide a final, conclusive summary of the team's current state and potential. (2-3 sentences)
+
+---
+
+**Analyze the following chat log:**
+```
+{chat_log}
+```
 """
 
-ROLE_ANALYSIS_PROMPT = """
-You are DR. Aiden Rhee, a dialogue analyst.
-Analyze the following group chat log and classify each participant into roles such as:
-- Initiator
-- Mediator
-- Supporter
-- Observer
-- Challenger
-Explain the reason for each classification.
-Return as JSON in the format:
-{
-  "role_analysis": [
-    {"name": "홍길동", "role": "Initiator", "reason": "Suggests direction repeatedly and dominates decisions."}
-  ]
-}
-Chat log:
-"""
+def analyze_report(chat_log: str) -> str | None:
+    """
+    OpenAI API를 호출하여 대화 기록으로부터 조직 분석 리포트를 생성합니다.
+    
+    Args:
+        chat_log: 분석할 대화 기록 문자열.
 
-FALLBACK_TEMPLATE = '''{
-  "role_analysis": [
-    {"name": "%s", "role": "Observer", "reason": "Insufficient data, defaulted to passive role."}
-  ]
-}'''
+    Returns:
+        Markdown 형식의 분석 리포트 문자열 또는 실패 시 None.
+    """
+    if not client:
+        st.error("OpenAI API 클라이언트가 초기화되지 않았습니다. Streamlit secrets에 API 키를 설정했는지 확인하세요.")
+        return None
 
-def call_gpt(prompt: str) -> str:
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4
-    )
-    return response.choices[0].message['content']
-
-def analyze_chat(chat_text: str) -> dict:
     try:
-        org_response = call_gpt(ORG_DIAG_PROMPT + chat_text)
-        return json.loads(org_response)
-    except Exception:
-        try:
-            role_response = call_gpt(ROLE_ANALYSIS_PROMPT + chat_text)
-            return json.loads(role_response)
-        except Exception:
-            try:
-                # fallback 추정 분석: 가장 많이 등장한 이름 추정
-                names = re.findall(r"[가-힣]{2,4}|[A-Za-z_]+", chat_text)
-                name_counts = {}
-                for name in names:
-                    if name not in name_counts:
-                        name_counts[name] = 0
-                    name_counts[name] += 1
-                top_name = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
-                return json.loads(FALLBACK_TEMPLATE % top_name)
-            except Exception as e:
-                return {"error": "Fallback failed: " + str(e)}
+        # 프롬프트에 실제 대화 기록을 삽입
+        prompt = MASTER_PROMPT.format(chat_log=chat_log)
 
+        # OpenAI API 호출
+        response = client.chat.completions.create(
+            model="gpt-4o", # 또는 "gpt-4-turbo"
+            messages=[
+                {"role": "system", "content": "You are an expert organizational psychologist."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,  # 일관성 있는 결과를 위해 온도를 낮게 설정
+            max_tokens=2048,
+            top_p=0.5,
+        )
+        
+        report_content = response.choices[0].message.content
+        
+        # LLM이 가끔 불필요한 ```markdown 태그를 추가하는 경우 제거
+        report_content = re.sub(r'^```markdown\s*', '', report_content)
+        report_content = re.sub(r'\s*```$', '', report_content)
+
+        return report_content.strip()
+
+    except Exception as e:
+        st.error(f"API 호출 중 오류가 발생했습니다: {e}")
+        return None
