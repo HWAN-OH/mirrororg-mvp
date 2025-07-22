@@ -1,5 +1,3 @@
-# analyzer.py is now mostly embedded into app.py, but if you'd like to separate responsibilities, here’s an analyzer module that handles GPT interactions.
-
 import openai
 import json
 import re
@@ -38,20 +36,39 @@ Return as JSON in the format:
 Chat log:
 """
 
-def call_gpt(prompt: str) -> dict:
+FALLBACK_TEMPLATE = '''{
+  "role_analysis": [
+    {"name": "%s", "role": "Observer", "reason": "Insufficient data, defaulted to passive role."}
+  ]
+}'''
+
+def call_gpt(prompt: str) -> str:
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.4
     )
-    return json.loads(response.choices[0].message['content'])
+    return response.choices[0].message['content']
 
 def analyze_chat(chat_text: str) -> dict:
     try:
-        return call_gpt(ORG_DIAG_PROMPT + chat_text)
+        org_response = call_gpt(ORG_DIAG_PROMPT + chat_text)
+        return json.loads(org_response)
     except Exception:
         try:
-            return call_gpt(ROLE_ANALYSIS_PROMPT + chat_text)
-        except Exception as e:
-            return {"error": str(e)}
+            role_response = call_gpt(ROLE_ANALYSIS_PROMPT + chat_text)
+            return json.loads(role_response)
+        except Exception:
+            try:
+                # fallback 추정 분석: 가장 많이 등장한 이름 추정
+                names = re.findall(r"[가-힣]{2,4}|[A-Za-z_]+", chat_text)
+                name_counts = {}
+                for name in names:
+                    if name not in name_counts:
+                        name_counts[name] = 0
+                    name_counts[name] += 1
+                top_name = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
+                return json.loads(FALLBACK_TEMPLATE % top_name)
+            except Exception as e:
+                return {"error": "Fallback failed: " + str(e)}
 
