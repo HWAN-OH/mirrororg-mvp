@@ -8,12 +8,12 @@ st.title("🪞 MirrorOrg 조직 진단 요약 / Organizational Summary")
 with st.sidebar:
     st.markdown("## 📝 분석 목적 / Purpose")
     st.markdown("""
-    이 도구는 조직 내 구성원 간의 상호작용 패턴을 **성향의 차이**로 보여주기 위한 것입니다.  
-    **갈등이나 우열을 평가하는 목적이 아닙니다.**
+    이 도구는 MirrorMind 방식에 따라 구성원 간의 상호작용을 분석하여 **성향의 차이**를 시각화합니다.  
+    **이 분석은 우열 평가나 인사 목적이 아니며**, 심층적 이해와 조직 내 커뮤니케이션 개선을 위한 것입니다.
 
     ---
-    This tool aims to **visualize interaction patterns** as a reflection of **personality tendencies**,  
-    **not to evaluate conflict or superiority**.
+    This tool visualizes interpersonal dynamics using the MirrorMind methodology, highlighting **differences in tendencies**,  
+    **not for evaluation or HR purposes**, but to enhance understanding and communication within the organization.
     """)
 
     st.markdown("## ⚖️ 저작권 / Copyright")
@@ -37,8 +37,10 @@ def get_short_content(content, max_lines=2000):
     return "\n".join(lines[-max_lines:]) if len(lines) > max_lines else content
 
 def generate_text_summary(network_data):
-    supports = [x for x in network_data if x["type"] == "support"]
-    conflicts = [x for x in network_data if x["type"] == "conflict"]
+    if not isinstance(network_data, list):
+        return "⚠️ 오류: 분석 결과가 올바른 JSON 리스트 형식이 아닙니다. / Invalid format returned."
+    supports = [x for x in network_data if x.get("type") == "support"]
+    conflicts = [x for x in network_data if x.get("type") == "conflict"]
     all_names = [x["source"] for x in network_data] + [x["target"] for x in network_data]
     name_counts = Counter(all_names)
     support_to = Counter([x["target"] for x in supports])
@@ -48,7 +50,7 @@ def generate_text_summary(network_data):
     top_people = [name for name, _ in name_counts.most_common(3)]
 
     summary = f"""
-### 🧾 조직 진단 요약 / Organizational Diagnosis Summary
+### 🧾 조직 진단 요약 / Organizational Diagnosis Summary (MirrorMind 기반)
 
 - 📌 **리더 / Leader**: `{leader}`
 - ⚠️ **갈등 집중 인물 / Conflict-prone figure**: `{top_conflict}`
@@ -75,8 +77,15 @@ if st.button("진단 실행 (Run Diagnosis)", use_container_width=True):
         result = analyzer.analyze_network_json(short_content)
 
     if "data" in result:
-        st.markdown(generate_text_summary(result["data"]))
+        if not isinstance(result["data"], list):
+            st.error("❌ 결과 데이터 형식 오류: 예상한 리스트가 아님 / Invalid format")
+        else:
+            st.markdown(generate_text_summary(result["data"]))
     elif "error" in result:
         st.error("❌ 진단 실패 / Diagnosis Failed: JSON 분석 실패")
-        st.subheader("📄 LLM 응답 원문 / Raw LLM Response")
-        st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("📄 GPT 원본 응답 / Raw GPT Response")
+    st.code(result.get("raw_response", "응답 없음 / No response"))
+
+    st.subheader("🧪 사용된 GPT 프롬프트 / Prompt")
+    st.code(result.get("prompt", "프롬프트 없음 / No prompt"))
